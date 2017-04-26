@@ -48,7 +48,7 @@ function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
    
    if opt.retrainOnlyFC == true then
       if opt.donModel == 'none' then
-         local nChannels = 132
+         local nChannels = opt.nLastLayerCh
          model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
          if opt.dataset == 'cifar100' then
             model:add(nn.Linear(nChannels, 100))
