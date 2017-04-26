@@ -25,18 +25,25 @@ torch.setnumthreads(1)
 local opt = opts.parse(arg)
 torch.manualSeed(opt.manualSeed)
 cutorch.manualSeedAll(opt.manualSeed)
+cutorch.setDevice(opt.iGPU)
 
 -- Load previous checkpoint, if it exists
-local checkpoint, optimState = checkpoints.latest(opt)
+local checkpoint, optimState
+local preModel
+if opt.testOnly then
+   checkpoint, optimState = checkpoints.best(opt)
+else
+   checkpoint, optimState = checkpoints.latest(opt)
+end
 
 -- Create model
-local model, criterion = models.setup(opt, checkpoint)
+local model, criterion, preModel, donModel = models.setup(opt, checkpoint)
 
 -- Data loading
 local trainLoader, valLoader = DataLoader.create(opt)
 
 -- The trainer handles the training loop and evaluation on validation set
-local trainer = Trainer(model, criterion, opt, optimState)
+local trainer = Trainer(model, preModel, donModel, criterion, opt, optimState)
 
 if opt.testOnly then
    local top1Err, top5Err = trainer:test(0, valLoader)
@@ -59,9 +66,9 @@ for epoch = startEpoch, opt.nEpochs do
       bestModel = true
       bestTop1 = testTop1
       bestTop5 = testTop5
-      print(' * Best model ', testTop1, testTop5)
+      
    end
-
+   print(' * Best model ', bestTop1, bestTop5)
    checkpoints.save(epoch, model, trainer.optimState, bestModel, opt)
 end
 

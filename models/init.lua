@@ -17,7 +17,7 @@ require 'cudnn'
 local M = {}
 
 function M.setup(opt, checkpoint)
-   local model
+   local model, preModel, donModel
    if checkpoint then
       local modelPath = paths.concat(opt.resume, checkpoint.modelFile)
       assert(paths.filep(modelPath), 'Saved model not found: ' .. modelPath)
@@ -28,12 +28,24 @@ function M.setup(opt, checkpoint)
       assert(paths.filep(opt.retrain), 'File not found: ' .. opt.retrain)
       print('Loading model from file: ' .. opt.retrain)
       model = torch.load(opt.retrain):type(opt.tensorType)
-      model.__memoryOptimized = nil
+      --model.__memoryOptimized = nil
    else
       print('=> Creating model from file: models/' .. opt.netType .. '.lua')
       model = require('models/' .. opt.netType)(opt)
    end
-
+   
+   if opt.preModel == 'none' then
+      preModel = nil
+   else
+      preModel = torch.load(opt.preModel):type(opt.tensorType):cuda()
+   end
+   
+   if opt.donModel == 'none' then
+      donModel = nil
+   else
+      donModel = torch.load(opt.donModel):type(opt.tensorType):cuda()
+   end
+   
    -- First remove any DataParallelTable
    if torch.type(model) == 'nn.DataParallelTable' then
       model = model:get(1)
@@ -95,8 +107,14 @@ function M.setup(opt, checkpoint)
       model = dpt:type(opt.tensorType)
    end
 
-   local criterion = nn.CrossEntropyCriterion():type(opt.tensorType)
-   return model, criterion
+   local criterion
+   if opt.criterion == 'smooth' then
+      criterion = nn.SmoothL1Criterion:cuda()
+      criterion.sizeAverage = false
+   else
+      criterion = nn.CrossEntropyCriterion():type(opt.tensorType)
+   end
+   return model, criterion, preModel, donModel
 end
 
 function M.shareGradInput(model, opt)

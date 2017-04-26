@@ -20,6 +20,7 @@ function M.parse(arg)
    cmd:option('-dataset',    'imagenet', 'Options: imagenet | cifar10 | cifar100')
    cmd:option('-manualSeed', 0,          'Manually set RNG seed')
    cmd:option('-nGPU',       1,          'Number of GPUs to use by default')
+   cmd:option('-iGPU',       1,          'Select a GPU index')
    cmd:option('-backend',    'cudnn',    'Options: cudnn | cunn')
    cmd:option('-cudnn',      'fastest',  'Options: fastest | default | deterministic')
    cmd:option('-gen',        'gen',      'Path to save generated files')
@@ -41,10 +42,15 @@ function M.parse(arg)
    cmd:option('-weightDecay',     1e-4,  'weight decay')
    ---------- Model options ----------------------------------
    cmd:option('-netType',      'resnet', 'Options: resnet | preresnet')
+   cmd:option('-preModel',     'none',   'Path to pretrained Model')
+   cmd:option('-preModelAct',  'none',   'Pretrained model activation type')
+   cmd:option('-donModel',     'none',   'Path to doner model')
    cmd:option('-depth',        34,       'ResNet depth: 18 | 34 | 50 | 101 | ...', 'number')
    cmd:option('-shortcutType', '',       'Options: A | B | C')
    cmd:option('-retrain',      'none',   'Path to model to retrain with')
+   cmd:option('-retrainOnlyFC','false',  'Retrain last full connection layer only')
    cmd:option('-optimState',   'none',   'Path to an optimState to reload from')
+   cmd:option('-criterion',    'none',   'Training criterion')
    ---------- Model options ----------------------------------
    cmd:option('-shareGradInput',  'false', 'Share gradInput tensors to reduce memory usage')
    cmd:option('-optnet',          'false', 'Use optnet to reduce memory usage')
@@ -59,6 +65,7 @@ function M.parse(arg)
    opt.shareGradInput = opt.shareGradInput ~= 'false'
    opt.optnet = opt.optnet ~= 'false'
    opt.resetClassifier = opt.resetClassifier ~= 'false'
+   opt.retrainOnlyFC = opt.retrainOnlyFC ~= 'false'
 
    if not paths.dirp(opt.save) and not paths.mkdir(opt.save) then
       cmd:error('error: unable to create checkpoint directory: ' .. opt.save .. '\n')

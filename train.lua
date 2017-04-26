@@ -8,14 +8,16 @@
 --
 --  The training loop and learning rate schedule
 --
-
+require 'cudnn'
 local optim = require 'optim'
 
 local M = {}
 local Trainer = torch.class('resnet.Trainer', M)
 
-function Trainer:__init(model, criterion, opt, optimState)
+function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
    self.model = model
+   self.preModel = preModel
+   self.donModel = donModel
    self.criterion = criterion
    self.optimState = optimState or {
       learningRate = opt.LR,
@@ -27,6 +29,46 @@ function Trainer:__init(model, criterion, opt, optimState)
    }
    self.opt = opt
    self.params, self.gradParams = model:getParameters()
+   print('# params: ' .. self.params:size(1))
+   print(donModel)
+   if opt.preModel ~= 'none' then
+      model:remove(#model.modules)
+      model:remove(#model.modules)
+      model:remove(#model.modules)
+      preModel:remove(#preModel.modules)
+      preModel:remove(#preModel.modules)
+      preModel:remove(#preModel.modules)
+      if opt.preModelAct == 'sigmoid' then
+         model:remove(#model.modules)
+         model:add(cudnn.Sigmoid(true)):cuda()
+         preModel:remove(#preModel.modules)
+         preModel:add(cudnn.Sigmoid(true)):cuda()
+      end
+   end
+   
+   if opt.retrainOnlyFC == true then
+      if opt.donModel == 'none' then
+         local nChannels = 132
+         model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
+         if opt.dataset == 'cifar100' then
+            model:add(nn.Linear(nChannels, 100))
+         elseif opt.dataset == 'cifar10' then
+            model:add(nn.Linear(nChannels, 10))
+         end
+      else
+         print((#donModel.modules))
+         if opt.preModelAct == 'sigmoid' then
+            model:remove(#model.modules)
+            model:add(cudnn.Sigmoid(true)):cuda()
+         end
+         model:add(donModel:get(#donModel.modules-2))
+         model:add(donModel:get(#donModel.modules-1))
+         model:add(donModel:get(#donModel.modules))
+      end
+   end
+   model:cuda()
+   print(model)
+   --print(preModel)
 end
 
 function Trainer:train(epoch, dataloader)
@@ -52,25 +94,44 @@ function Trainer:train(epoch, dataloader)
 
       -- Copy input and target to the GPU
       self:copyInputs(sample)
-
+      if self.opt.preModel ~= 'none' then
+         self.target = self.preModel:forward(self.input)
+      end
       local output = self.model:forward(self.input):float()
       local batchSize = output:size(1)
       local loss = self.criterion:forward(self.model.output, self.target)
 
       self.model:zeroGradParameters()
+      if self.opt.preModel ~= 'none' then
+         self.criterion.gradInput = torch.CudaTensor()
+         self.criterion.gradInput:resizeAs(self.model.output):zero()
+      end
       self.criterion:backward(self.model.output, self.target)
       self.model:backward(self.input, self.criterion.gradInput)
-
+      if self.opt.retrainOnlyFC == true then
+          self.gradParams:narrow(1,1,self.gradParams:size()[1]-1320-10):zero()
+      end
       optim.sgd(feval, self.params, self.optimState)
 
-      local top1, top5 = self:computeScore(output, sample.target, 1)
-      top1Sum = top1Sum + top1*batchSize
-      top5Sum = top5Sum + top5*batchSize
+      local top1, top5
       lossSum = lossSum + loss*batchSize
       N = N + batchSize
-
-      print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f  top5 %7.3f'):format(
+      if self.opt.criterion == 'smooth' then
+         top1 = 0
+         top5 = 0
+         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)'):format(
+         epoch, n, trainSize, timer:time().real, dataTime, loss, lossSum / N))
+      else 
+         top1, top5 = self:computeScore(output, sample.target, 1)
+         top1Sum = top1Sum + top1*batchSize
+         top5Sum = top5Sum + top5*batchSize
+         
+      
+         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f  top5 %7.3f'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, top1, top5))
+      end
+      
+      
 
       -- check that the storage didn't get changed due to an unfortunate getParameters call
       assert(self.params:storage() == self.model:parameters()[1]:storage())
@@ -90,7 +151,7 @@ function Trainer:test(epoch, dataloader)
    local size = dataloader:size()
 
    local nCrops = self.opt.tenCrop and 10 or 1
-   local top1Sum, top5Sum = 0.0, 0.0
+   local top1Sum, top5Sum, lossSum = 0.0, 0.0, 0.0
    local N = 0
 
    self.model:evaluate()
@@ -101,25 +162,43 @@ function Trainer:test(epoch, dataloader)
       self:copyInputs(sample)
 
       local output = self.model:forward(self.input):float()
+      if self.opt.preModel ~= 'none' then
+         self.target = self.preModel:forward(self.input)
+      end
       local batchSize = output:size(1) / nCrops
       local loss = self.criterion:forward(self.model.output, self.target)
 
-      local top1, top5 = self:computeScore(output, sample.target, nCrops)
-      top1Sum = top1Sum + top1*batchSize
-      top5Sum = top5Sum + top5*batchSize
-      N = N + batchSize
-
-      print((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)'):format(
+      local top1, top5
+      if self.opt.criterion == 'smooth' then
+         lossSum = lossSum + loss*batchSize
+         N = N + batchSize
+         print((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  loss %7.3f (%7.3f)'):format(
+         epoch, n, size, timer:time().real, dataTime, loss, lossSum / N))
+         
+         top1Sum = lossSum
+         top5Sum = lossSum
+      else 
+         top1, top5 = self:computeScore(output, sample.target, nCrops)
+         top1Sum = top1Sum + top1*batchSize
+         top5Sum = top5Sum + top5*batchSize
+         N = N + batchSize
+         print((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)'):format(
          epoch, n, size, timer:time().real, dataTime, top1, top1Sum / N, top5, top5Sum / N))
-
+         
+      end
+      
+      
       timer:reset()
       dataTimer:reset()
    end
    self.model:training()
-
-   print((' * Finished epoch # %d     top1: %7.3f  top5: %7.3f\n'):format(
-      epoch, top1Sum / N, top5Sum / N))
-
+   if self.opt.criterion == 'smooth' then
+      print((' * Finished epoch # %d     loss %7.3f\n'):format(
+         epoch, lossSum / N))
+   else
+      print((' * Finished epoch # %d     top1: %7.3f  top5: %7.3f\n'):format(
+         epoch, top1Sum / N, top5Sum / N))
+   end
    return top1Sum / N, top5Sum / N
 end
 
@@ -177,7 +256,18 @@ function Trainer:learningRate(epoch)
    if self.opt.dataset == 'imagenet' then
       decay = math.floor((epoch - 1) / 30)
    elseif self.opt.dataset == 'cifar10' then
-      decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      if self.opt.preModel ~= 'none' then
+         decay = epoch >= 225 and 5 or epoch >= 150 and 4 or 3
+      elseif self.opt.donModel ~= 'none' then
+         --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
+         --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
+         --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+         decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
+         print('self.opt.donModel ~= none')
+      else
+         decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+      end
    elseif self.opt.dataset == 'cifar100' then
       decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
    end
