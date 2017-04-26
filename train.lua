@@ -67,8 +67,6 @@ function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
       end
    end
    model:cuda()
-   print(model)
-   --print(preModel)
 end
 
 function Trainer:train(epoch, dataloader)
@@ -89,7 +87,8 @@ function Trainer:train(epoch, dataloader)
    print('=> Training epoch # ' .. epoch)
    -- set the batch norm to training mode
    self.model:training()
-   for n, sample in dataloader:run() do
+  
+   for n, sample in dataloader:run(self.opt.randCrop) do
       local dataTime = dataTimer:time().real
 
       -- Copy input and target to the GPU

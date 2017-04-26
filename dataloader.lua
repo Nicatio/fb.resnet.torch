@@ -39,7 +39,7 @@ function DataLoader:__init(dataset, opt, split)
       end
       torch.setnumthreads(1)
       _G.dataset = dataset
-      _G.preprocess = dataset:preprocess()
+      _G.preprocess = dataset:preprocess(opt.randCrop)
       return dataset:size()
    end
 
