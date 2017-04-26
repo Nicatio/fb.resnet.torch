@@ -265,7 +265,6 @@ function Trainer:learningRate(epoch)
          --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
          --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
          decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
-         print('self.opt.donModel ~= none')
       else
          decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
       end

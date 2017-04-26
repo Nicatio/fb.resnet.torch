@@ -6,3 +6,4 @@ tr_*
 models/dense*
 .buildpath
 .project
+*.settings
