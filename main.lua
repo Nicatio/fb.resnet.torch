@@ -70,6 +70,11 @@ for epoch = startEpoch, opt.nEpochs do
    end
    print(' * Best model ', bestTop1, bestTop5)
    checkpoints.save(epoch, model, trainer.optimState, bestModel, opt)
+   
+   local logfile = io.open(paths.concat(opt.save, 'log.txt'), 'a+')
+   logfile:write(('%d\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f'):format(
+         epoch, trainTop1, trainTop5, testTop1, testTop5, bestTop1, bestTop5))
+   logfile:close()
 end
 
 print(string.format(' * Finished top1: %6.3f  top5: %6.3f', bestTop1, bestTop5))

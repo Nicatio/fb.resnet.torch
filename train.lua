@@ -119,7 +119,7 @@ function Trainer:train(epoch, dataloader)
       if self.opt.criterion == 'smooth' then
          top1 = 0
          top5 = 0
-         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)'):format(
+         io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, lossSum / N))
       else 
          top1, top5 = self:computeScore(output, sample.target, 1)
@@ -127,8 +127,8 @@ function Trainer:train(epoch, dataloader)
          top5Sum = top5Sum + top5*batchSize
          
       
-         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f  top5 %7.3f'):format(
-         epoch, n, trainSize, timer:time().real, dataTime, loss, top1, top5))
+         io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
+         epoch, n, trainSize, timer:time().real, dataTime, loss, top1, top1Sum / N, top5, top5Sum / N))
       end
       
       
@@ -139,7 +139,7 @@ function Trainer:train(epoch, dataloader)
       timer:reset()
       dataTimer:reset()
    end
-
+   io.write('\n')
    return top1Sum / N, top5Sum / N, lossSum / N
 end
 
@@ -172,7 +172,7 @@ function Trainer:test(epoch, dataloader)
       if self.opt.criterion == 'smooth' then
          lossSum = lossSum + loss*batchSize
          N = N + batchSize
-         print((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  loss %7.3f (%7.3f)'):format(
+         io.write((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  loss %7.3f (%7.3f)\r'):format(
          epoch, n, size, timer:time().real, dataTime, loss, lossSum / N))
          
          top1Sum = lossSum
@@ -182,7 +182,7 @@ function Trainer:test(epoch, dataloader)
          top1Sum = top1Sum + top1*batchSize
          top5Sum = top5Sum + top5*batchSize
          N = N + batchSize
-         print((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)'):format(
+         io.write((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
          epoch, n, size, timer:time().real, dataTime, top1, top1Sum / N, top5, top5Sum / N))
          
       end
@@ -191,6 +191,7 @@ function Trainer:test(epoch, dataloader)
       timer:reset()
       dataTimer:reset()
    end
+   io.write('\n')
    self.model:training()
    if self.opt.criterion == 'smooth' then
       print((' * Finished epoch # %d     loss %7.3f\n'):format(
