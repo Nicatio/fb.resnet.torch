@@ -72,7 +72,7 @@ for epoch = startEpoch, opt.nEpochs do
    checkpoints.save(epoch, model, trainer.optimState, bestModel, opt)
    
    local logfile = io.open(paths.concat(opt.save, 'log.txt'), 'a+')
-   logfile:write(('%d\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f'):format(
+   logfile:write(('%d\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\n'):format(
          epoch, trainTop1, trainTop5, testTop1, testTop5, bestTop1, bestTop5))
    logfile:close()
 end
