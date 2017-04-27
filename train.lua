@@ -193,11 +193,11 @@ function Trainer:test(epoch, dataloader)
    io.write('\n')
    self.model:training()
    if self.opt.criterion == 'smooth' then
-      print((' * Finished epoch # %d     loss %7.3f\n'):format(
-         epoch, lossSum / N))
+      print((' * Finished epoch # %d     lr %e     loss %7.3f\n'):format(
+         epoch, self:learningRate(epoch), lossSum / N))
    else
-      print((' * Finished epoch # %d     top1: %7.3f  top5: %7.3f\n'):format(
-         epoch, top1Sum / N, top5Sum / N))
+      print((' * Finished epoch # %d     lr %e     top1: %7.3f     top5: %7.3f\n'):format(
+         epoch, self:learningRate(epoch), top1Sum / N, top5Sum / N))
    end
    return top1Sum / N, top5Sum / N
 end
