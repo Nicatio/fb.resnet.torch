@@ -34,6 +34,10 @@ function M.parse(arg)
    cmd:option('-testOnly',        'false', 'Run on validation set only')
    cmd:option('-tenCrop',         'false', 'Ten-crop testing')
    cmd:option('-randCrop',        'true',  'Random crop')
+   ------------- Feature Extraction options ----------
+   cmd:option('-feOnly',          'false', 'Feature extraction only')
+   cmd:option('-feDir',           'feat',  'Directory in which to save features')
+   cmd:option('-feLayerIndex',    -1,      'Layer index')
    ------------- Checkpointing options ---------------
    cmd:option('-save',            'checkpoints', 'Directory in which to save checkpoints')
    cmd:option('-resume',          'none',        'Resume from the latest checkpoint in this directory')
@@ -60,10 +64,11 @@ function M.parse(arg)
    cmd:option('-resetClassifier', 'false', 'Reset the fully connected layer for fine-tuning')
    cmd:option('-nClasses',         0,      'Number of classes in the dataset')
    cmd:text()
-
+     
    local opt = cmd:parse(arg or {})
-
+   
    opt.testOnly = opt.testOnly ~= 'false'
+   opt.feOnly = opt.feOnly ~= 'false'
    opt.tenCrop = opt.tenCrop ~= 'false'
    opt.shareGradInput = opt.shareGradInput ~= 'false'
    opt.optnet = opt.optnet ~= 'false'
@@ -77,6 +82,17 @@ function M.parse(arg)
     
    if not paths.dirp(opt.save) and not paths.mkdir(opt.save) then
       cmd:error('error: unable to create checkpoint directory: ' .. opt.save .. '\n')
+   end
+   if opt.feOnly then
+      if not paths.dirp(opt.feDir) and not paths.mkdir(opt.feDir) then
+         cmd:error('error: unable to create feature directory: ' .. opt.feDir .. '\n')
+      end
+   end
+   
+   if not opt.testOnly and not opt.feOnly then 
+      local fd = io.open(('%s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
+      fd:write(table.concat(arg, ' '))
+      fd:close()
    end
 
    if opt.dataset == 'imagenet' then

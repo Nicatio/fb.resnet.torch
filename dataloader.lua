@@ -64,6 +64,10 @@ function DataLoader:size()
    return math.ceil(self.__size / self.batchSize)
 end
 
+function DataLoader:dataSize()
+   return self.__size
+end
+
 function DataLoader:run()
    local threads = self.threads
    local size, batchSize = self.__size, self.batchSize

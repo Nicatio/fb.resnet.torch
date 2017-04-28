@@ -246,4 +246,38 @@ function Trainer:learningRate(epoch)
    return self.opt.LR * math.pow(0.1, decay)
 end
 
+function Trainer:featureExtract(epoch, dataloader, layerIndex)
+   -- Extracts intermediate features
+
+   local dataSize = dataloader:dataSize()
+   local size = dataloader:size()
+
+   local nCrops = self.opt.tenCrop and 10 or 1
+   local top1Sum, top5Sum, lossSum = 0.0, 0.0, 0.0
+   local N = 0
+   local extracted
+   self.model:evaluate()
+   for n, sample in dataloader:run() do
+
+      -- Copy input and target to the GPU
+      self:copyInputs(sample)
+
+      local output = self.model:forward(self.input):float()
+      local batchSize = output:size(1) / nCrops
+      local loss = self.criterion:forward(self.model.output, self.target)
+      local res = self.model:get(layerIndex).output:squeeze()
+      if n == 1 then
+         local esize = res:size()
+         esize[1] = dataSize
+         extracted = torch.Tensor(esize):type(res:type())
+      end
+      extracted:narrow(1, N+1, batchSize):copy(res:narrow(1, 1, batchSize))
+      io.write((' | Extract: [%d/%d]\r'):format(n, size))
+      N = N + batchSize
+   end
+   print('\nFinished.')
+   
+   return extracted
+end
+
 return M.Trainer

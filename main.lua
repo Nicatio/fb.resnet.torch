@@ -10,6 +10,7 @@ require 'torch'
 require 'paths'
 require 'optim'
 require 'nn'
+require 'sys'
 local DataLoader = require 'dataloader'
 local models = require 'models/init'
 local Trainer = require 'train'
@@ -48,6 +49,22 @@ local trainer = Trainer(model, preModel, donModel, criterion, opt, optimState)
 if opt.testOnly then
    local top1Err, top5Err = trainer:test(0, valLoader)
    print(string.format(' * Results top1: %6.3f  top5: %6.3f', top1Err, top5Err))
+   return
+end
+
+
+if opt.feOnly then
+   
+   local feLayerIndex = opt.feLayerIndex
+   if feLayerIndex < 0 then
+      feLayerIndex = #model.modules
+   end 
+
+   local feFile = 'feature_' .. feLayerIndex .. '.t7'
+   local features = trainer:featureExtract(0, trainLoader, feLayerIndex)
+
+   torch.save(paths.concat(opt.feDir, feFile), features)
+   print ('Features saved at ' .. paths.concat(opt.feDir, feFile))
    return
 end
 
