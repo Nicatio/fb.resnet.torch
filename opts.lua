@@ -37,6 +37,7 @@ function M.parse(arg)
    ------------- Checkpointing options ---------------
    cmd:option('-save',            'checkpoints', 'Directory in which to save checkpoints')
    cmd:option('-resume',          'none',        'Resume from the latest checkpoint in this directory')
+   cmd:option('-saveNresume',     'none',        'Save and resume from the checkpoint in this directory')
    ---------- Optimization options ----------------------
    cmd:option('-LR',              0.1,   'initial learning rate')
    cmd:option('-momentum',        0.9,   'momentum')
@@ -69,7 +70,11 @@ function M.parse(arg)
    opt.resetClassifier = opt.resetClassifier ~= 'false'
    opt.retrainOnlyFC = opt.retrainOnlyFC ~= 'false'
    opt.randCrop = opt.randCrop ~= 'false'
-   
+   if opt.saveNresume ~= 'none' then
+      opt.save = opt.saveNresume
+      opt.resume = opt.saveNresume
+   end
+    
    if not paths.dirp(opt.save) and not paths.mkdir(opt.save) then
       cmd:error('error: unable to create checkpoint directory: ' .. opt.save .. '\n')
    end

@@ -8,3 +8,4 @@ models/dense*
 .buildpath
 .project
 *.settings
+batch.txt

@@ -32,7 +32,14 @@ function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
    print('# params: ' .. self.params:size(1))
    
    print (self.model)
-   --model:cuda()
+   print ('')
+   print (' - weightDecay:   ' .. opt.weightDecay)
+   print (' - momentum:      ' .. opt.momentum)
+   print (' - learningRate:  ' .. opt.LR)
+   print (' - randomCrop:    ' .. tostring(opt.randCrop))
+   print (' - retrainOnlyFC: ' .. tostring(opt.retrainOnlyFC))
+   print (' - iGPU:          ' .. opt.iGPU)
+   print ('')
 end
 
 function Trainer:train(epoch, dataloader)
@@ -160,10 +167,10 @@ function Trainer:test(epoch, dataloader)
    self.model:training()
    if self.opt.criterion == 'smooth' then
       print((' * Finished epoch # %d     lr %e     loss %7.3f\n'):format(
-         epoch, self:learningRate(epoch), lossSum / N))
+         epoch, self:learningRate(epoch-1), lossSum / N))
    else
       print((' * Finished epoch # %d     lr %e     top1: %7.3f     top5: %7.3f\n'):format(
-         epoch, self:learningRate(epoch), top1Sum / N, top5Sum / N))
+         epoch, self:learningRate(epoch-1), top1Sum / N, top5Sum / N))
    end
    return top1Sum / N, top5Sum / N
 end
