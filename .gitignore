@@ -2,7 +2,8 @@ gen/
 libnccl.so
 model_best.t7
 checkpoints
-tr_*
+tr/*
+trained*
 models/dense*
 .buildpath
 .project

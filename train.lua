@@ -30,43 +30,9 @@ function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
    self.opt = opt
    self.params, self.gradParams = model:getParameters()
    print('# params: ' .. self.params:size(1))
-   print(donModel)
-   if opt.preModel ~= 'none' then
-      model:remove(#model.modules)
-      model:remove(#model.modules)
-      model:remove(#model.modules)
-      preModel:remove(#preModel.modules)
-      preModel:remove(#preModel.modules)
-      preModel:remove(#preModel.modules)
-      if opt.preModelAct == 'sigmoid' then
-         model:remove(#model.modules)
-         model:add(cudnn.Sigmoid(true)):cuda()
-         preModel:remove(#preModel.modules)
-         preModel:add(cudnn.Sigmoid(true)):cuda()
-      end
-   end
    
-   if opt.retrainOnlyFC == true then
-      if opt.donModel == 'none' then
-         local nChannels = opt.nLastLayerCh
-         model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
-         if opt.dataset == 'cifar100' then
-            model:add(nn.Linear(nChannels, 100))
-         elseif opt.dataset == 'cifar10' then
-            model:add(nn.Linear(nChannels, 10))
-         end
-      else
-         print((#donModel.modules))
-         if opt.preModelAct == 'sigmoid' then
-            model:remove(#model.modules)
-            model:add(cudnn.Sigmoid(true)):cuda()
-         end
-         model:add(donModel:get(#donModel.modules-2))
-         model:add(donModel:get(#donModel.modules-1))
-         model:add(donModel:get(#donModel.modules))
-      end
-   end
-   model:cuda()
+   print (self.model)
+   --model:cuda()
 end
 
 function Trainer:train(epoch, dataloader)
