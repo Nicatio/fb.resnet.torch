@@ -90,7 +90,7 @@ for epoch = startEpoch, opt.nEpochs do
    
    local logfile = io.open(paths.concat(opt.save, 'log.txt'), 'a+')
    logfile:write(('%d\t%e\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\t%7.3f\n'):format(
-         epoch, trainer:learningRate(epoch), trainTop1, trainTop5, testTop1, testTop5, bestTop1, bestTop5))
+         epoch, trainer:learningRate(epoch-1), trainTop1, trainTop5, testTop1, testTop5, bestTop1, bestTop5))
    logfile:close()
 end
 
