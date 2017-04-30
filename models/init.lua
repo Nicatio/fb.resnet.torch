@@ -40,49 +40,46 @@ function M.setup(opt, checkpoint)
       preModel = torch.load(opt.preModel):type(opt.tensorType):cuda()
    end
    
-   if opt.donModel == 'none' then
+   if opt.donModel == 'none' or opt.donModel == 'addFC' then
       donModel = nil
    else
       donModel = torch.load(opt.donModel):type(opt.tensorType):cuda()
    end
    
    if not checkpoint then
-     if opt.preModel ~= 'none' then
-        model:remove(#model.modules)
-        model:remove(#model.modules)
-        model:remove(#model.modules)
-        preModel:remove(#preModel.modules)
-        preModel:remove(#preModel.modules)
-        preModel:remove(#preModel.modules)
-        if opt.preModelAct == 'sigmoid' then
-           model:remove(#model.modules)
-           model:add(cudnn.Sigmoid(true))
-           preModel:remove(#preModel.modules)
-           preModel:add(cudnn.Sigmoid(true))
-        end
-     end
-     
-     if opt.retrainOnlyFC == true then
-        if opt.donModel == 'none' then
-           local nChannels = opt.nLastLayerCh
-           model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
-           if opt.dataset == 'cifar100' then
-              model:add(nn.Linear(nChannels, 100))
-           elseif opt.dataset == 'cifar10' then
-              model:add(nn.Linear(nChannels, 10))
-           end
-        else
-           if opt.preModelAct == 'sigmoid' then
-              model:remove(#model.modules)
-              model:add(cudnn.Sigmoid(true)):cuda()
-           end
-           model:add(donModel:get(#donModel.modules-2))
-           model:add(donModel:get(#donModel.modules-1))
-           model:add(donModel:get(#donModel.modules))
-        end
-     end
+      if opt.preModel ~= 'none' then
+         model:remove(#model.modules)
+         model:remove(#model.modules)
+         model:remove(#model.modules)
+         preModel:remove(#preModel.modules)
+         preModel:remove(#preModel.modules)
+         preModel:remove(#preModel.modules)
+         if opt.preModelAct == 'sigmoid' then
+            model:remove(#model.modules)
+            model:add(cudnn.Sigmoid(true))
+            preModel:remove(#preModel.modules)
+            preModel:add(cudnn.Sigmoid(true))
+         end
+      end
+      if opt.donModel == 'addFC' then
+         local nChannels = opt.nLastLayerCh
+         model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
+         if opt.dataset == 'cifar100' then
+            model:add(nn.Linear(nChannels, 100))
+         elseif opt.dataset == 'cifar10' then
+            model:add(nn.Linear(nChannels, 10))
+         end
+         model:cuda()
+      elseif opt.donModel ~= 'none' then
+         if opt.preModelAct == 'sigmoid' then
+            model:remove(#model.modules)
+            model:add(cudnn.Sigmoid(true)):cuda()
+         end
+         model:add(donModel:get(#donModel.modules-2))
+         model:add(donModel:get(#donModel.modules-1))
+         model:add(donModel:get(#donModel.modules))
+      end  
    end
-   
    -- First remove any DataParallelTable
    if torch.type(model) == 'nn.DataParallelTable' then
       model = model:get(1)
@@ -147,6 +144,9 @@ function M.setup(opt, checkpoint)
    local criterion
    if opt.criterion == 'smooth' then
       criterion = nn.SmoothL1Criterion:cuda()
+      criterion.sizeAverage = false
+   elseif opt.criterion == 'mse' then
+      criterion = nn.MSECriterion:cuda()
       criterion.sizeAverage = false
    else
       criterion = nn.CrossEntropyCriterion():type(opt.tensorType)

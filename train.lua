@@ -88,7 +88,7 @@ function Trainer:train(epoch, dataloader)
       local top1, top5
       lossSum = lossSum + loss*batchSize
       N = N + batchSize
-      if self.opt.criterion == 'smooth' then
+      if self.opt.criterion ~= 'none' then
          top1 = 0
          top5 = 0
          io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
@@ -141,7 +141,7 @@ function Trainer:test(epoch, dataloader)
       local loss = self.criterion:forward(self.model.output, self.target)
 
       local top1, top5
-      if self.opt.criterion == 'smooth' then
+      if self.opt.criterion ~= 'none' then
          lossSum = lossSum + loss*batchSize
          N = N + batchSize
          io.write((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  loss %7.3f (%7.3f)\r'):format(
@@ -165,7 +165,7 @@ function Trainer:test(epoch, dataloader)
    end
    io.write('\n')
    self.model:training()
-   if self.opt.criterion == 'smooth' then
+   if self.opt.criterion ~= 'none' then
       print((' * Finished epoch # %d     lr %e     loss %7.3f\n'):format(
          epoch, self:learningRate(epoch-1), lossSum / N))
    else
