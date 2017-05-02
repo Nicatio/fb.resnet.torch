@@ -17,7 +17,7 @@ require 'cudnn'
 local M = {}
 
 function M.setup(opt, checkpoint)
-   local model, preModel, donModel
+   local model, preModel, donModel, chSelector
    if checkpoint then
       local modelPath = paths.concat(opt.resume, checkpoint.modelFile)
       assert(paths.filep(modelPath), 'Saved model not found: ' .. modelPath)
@@ -44,6 +44,13 @@ function M.setup(opt, checkpoint)
       donModel = nil
    else
       donModel = torch.load(opt.donModel):type(opt.tensorType):cuda()
+   end
+   
+   if opt.chSelector == 'none' then
+      chSelector = nil
+   else
+      print('Loading channel selector from file: ' .. opt.chSelector)
+      chSelector = torch.load(opt.chSelector):type(opt.tensorType):cuda()
    end
    
    if not checkpoint then
@@ -151,7 +158,7 @@ function M.setup(opt, checkpoint)
    else
       criterion = nn.CrossEntropyCriterion():type(opt.tensorType)
    end
-   return model, criterion, preModel, donModel
+   return model, criterion, preModel, donModel, chSelector
 end
 
 function M.shareGradInput(model, opt)

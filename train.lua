@@ -14,10 +14,11 @@ local optim = require 'optim'
 local M = {}
 local Trainer = torch.class('resnet.Trainer', M)
 
-function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
+function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, optimState)
    self.model = model
    self.preModel = preModel
    self.donModel = donModel
+   self.chSelector = chSelector
    self.criterion = criterion
    self.optimState = optimState or {
       learningRate = opt.LR,
@@ -29,7 +30,6 @@ function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
    }
    self.opt = opt
    self.params, self.gradParams = self.model:getParameters()
-   print('# params: ' .. self.params:size(1))
    
    print (self.model)
    print ('')
@@ -39,6 +39,7 @@ function Trainer:__init(model, preModel, donModel, criterion, opt, optimState)
    print (' - randomCrop:    ' .. tostring(opt.randCrop))
    print (' - retrainOnlyFC: ' .. tostring(opt.retrainOnlyFC))
    print (' - iGPU:          ' .. opt.iGPU)
+   print (' - #params:       ' .. self.params:size(1))
    print ('')
 end
 
@@ -97,13 +98,9 @@ function Trainer:train(epoch, dataloader)
          top1, top5 = self:computeScore(output, sample.target, 1)
          top1Sum = top1Sum + top1*batchSize
          top5Sum = top5Sum + top5*batchSize
-         
-      
          io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, top1, top1Sum / N, top5, top5Sum / N))
       end
-      
-      
 
       -- check that the storage didn't get changed due to an unfortunate getParameters call
       assert(self.params:storage() == self.model:parameters()[1]:storage())
@@ -235,10 +232,10 @@ function Trainer:learningRate(epoch)
          --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
          --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
          --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-         --decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
+         decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
          --decay = epoch >= 375 and 3 or epoch >=300 and 2 or epoch >= 225 and 1.5 or epoch >=150 and 1 or 0
          --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-         decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
+         --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
       else
          decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
       end

@@ -38,13 +38,13 @@ else
 end
 
 -- Create model
-local model, criterion, preModel, donModel = models.setup(opt, checkpoint)
+local model, criterion, preModel, donModel, chSelector = models.setup(opt, checkpoint)
 
 -- Data loading
 local trainLoader, valLoader = DataLoader.create(opt)
 
 -- The trainer handles the training loop and evaluation on validation set
-local trainer = Trainer(model, preModel, donModel, criterion, opt, optimState)
+local trainer = Trainer(model, preModel, donModel, chSelector, criterion, opt, optimState)
 
 if opt.testOnly then
    local top1Err, top5Err = trainer:test(0, valLoader)
@@ -54,7 +54,6 @@ end
 
 
 if opt.feOnly then
-   
    local feLayerIndex = opt.feLayerIndex
    if feLayerIndex < 0 then
       feLayerIndex = #model.modules
