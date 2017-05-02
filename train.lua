@@ -69,6 +69,9 @@ function Trainer:train(epoch, dataloader)
       self:copyInputs(sample)
       if self.opt.preModel ~= 'none' then
          self.target = self.preModel:forward(self.input)
+         if self.opt.chSelector ~= 'none' then
+            self.target = self.target:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+         end
       end
       local output = self.model:forward(self.input):float()
       local batchSize = output:size(1)
@@ -133,6 +136,9 @@ function Trainer:test(epoch, dataloader)
       local output = self.model:forward(self.input):float()
       if self.opt.preModel ~= 'none' then
          self.target = self.preModel:forward(self.input)
+         if self.opt.chSelector ~= 'none' then
+            self.target = self.target:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+         end
       end
       local batchSize = output:size(1) / nCrops
       local loss = self.criterion:forward(self.model.output, self.target)
