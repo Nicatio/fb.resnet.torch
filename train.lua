@@ -30,7 +30,13 @@ function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, o
    }
    self.opt = opt
    self.params, self.gradParams = self.model:getParameters()
-   
+   if self.opt.preTarget == 'class' then
+      self.criterionClass = nn.CrossEntropyCriterion():type(opt.tensorType)
+      
+      self.optimStateClass = {table.unpack(self.optimState)}
+   else 
+      self.criterionClass = nil
+   end
    print (self.model)
    print ('')
    print (' - weightDecay:   ' .. opt.weightDecay)
@@ -45,8 +51,14 @@ end
 
 function Trainer:train(epoch, dataloader)
    -- Trains the model for a single epoch
-   self.optimState.learningRate = self:learningRate(epoch)
-
+   if self.opt.preModel == 'none' then
+      self.optimState.learningRate = self:learningRate(epoch)
+   else
+      self.optimState.learningRate = self:learningRate(epoch) / 1000
+      if self.opt.preTarget == 'class' then
+         self.optimStateClass.learningRate = self:learningRate(epoch)
+      end
+   end
    local timer = torch.Timer()
    local dataTimer = torch.Timer()
 
@@ -62,37 +74,70 @@ function Trainer:train(epoch, dataloader)
    -- set the batch norm to training mode
    self.model:training()
   
+   local tempModel = nn.Sequential()
+  
    for n, sample in dataloader:run(self.opt.randCrop) do
       local dataTime = dataTimer:time().real
-
+      local output, batchSize, loss
       -- Copy input and target to the GPU
       self:copyInputs(sample)
-      if self.opt.preModel ~= 'none' then
-         self.target = self.preModel:forward(self.input)
-         if self.opt.chSelector ~= 'none' then
-            self.target = self.target:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+      if self.opt.preModel == 'none' then
+         output = self.model:forward(self.input):float()
+         batchSize = output:size(1)
+         loss = self.criterion:forward(self.model.output, self.target)
+         self.model:zeroGradParameters()
+         self.criterion:backward(self.model.output, self.target)
+         self.model:backward(self.input, self.criterion.gradInput)
+         optim.sgd(feval, self.params, self.optimState)
+      else 
+         if self.opt.preTarget == 'class' then
+            tempModel:add(self.model:get(#self.model.modules-2))
+            tempModel:add(self.model:get(#self.model.modules-1))
+            tempModel:add(self.model:get(#self.model.modules))
+            self.model:remove(#self.model.modules)
+            self.model:remove(#self.model.modules)
+            self.model:remove(#self.model.modules)
          end
-      end
-      local output = self.model:forward(self.input):float()
-      local batchSize = output:size(1)
-      local loss = self.criterion:forward(self.model.output, self.target)
+         self.targetConv = self.preModel:forward(self.input)
+         if self.opt.chSelector ~= 'none' then
+            self.targetConv = self.targetConv:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+         end
 
-      self.model:zeroGradParameters()
-      if self.opt.preModel ~= 'none' then
+         output = self.model:forward(self.input):float()
+         batchSize = output:size(1)
+         loss = self.criterion:forward(self.model.output, self.targetConv)
+   
+         self.model:zeroGradParameters()
          self.criterion.gradInput = torch.CudaTensor()
          self.criterion.gradInput:resizeAs(self.model.output):zero()
+         self.criterion:backward(self.model.output, self.targetConv)
+         self.model:backward(self.input, self.criterion.gradInput)
+         if self.opt.retrainOnlyFC == true then
+             self.gradParams:narrow(1,1,self.gradParams:size()[1]-1320-10):zero()
+         end
+         optim.sgd(feval, self.params, self.optimState)
+         
+         if self.opt.preTarget == 'class' then
+            self.model:add(tempModel:get(#tempModel.modules-2))
+            self.model:add(tempModel:get(#tempModel.modules-1))
+            self.model:add(tempModel:get(#tempModel.modules))
+            tempModel:remove(#tempModel.modules)
+            tempModel:remove(#tempModel.modules)
+            tempModel:remove(#tempModel.modules)
+            
+            output = self.model:forward(self.input):float()
+            batchSize = output:size(1)
+            loss = self.criterionClass:forward(self.model.output, self.target)
+            self.model:zeroGradParameters()
+            self.criterionClass:backward(self.model.output, self.target)
+            self.model:backward(self.input, self.criterionClass.gradInput)
+            optim.sgd(feval, self.params, self.optimStateClass)
+         end
       end
-      self.criterion:backward(self.model.output, self.target)
-      self.model:backward(self.input, self.criterion.gradInput)
-      if self.opt.retrainOnlyFC == true then
-          self.gradParams:narrow(1,1,self.gradParams:size()[1]-1320-10):zero()
-      end
-      optim.sgd(feval, self.params, self.optimState)
-
       local top1, top5
       lossSum = lossSum + loss*batchSize
       N = N + batchSize
-      if self.opt.criterion ~= 'none' then
+      if self.opt.preModel ~= 'none' and self.opt.preTarget == 'conv' then
          top1 = 0
          top5 = 0
          io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
@@ -133,18 +178,25 @@ function Trainer:test(epoch, dataloader)
       -- Copy input and target to the GPU
       self:copyInputs(sample)
 
-      local output = self.model:forward(self.input):float()
-      if self.opt.preModel ~= 'none' then
-         self.target = self.preModel:forward(self.input)
-         if self.opt.chSelector ~= 'none' then
-            self.target = self.target:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+
+      local output, batchSize, loss
+      output = self.model:forward(self.input):float()
+      batchSize = output:size(1) / nCrops
+      if self.opt.preModel == 'none' then
+         loss = self.criterion:forward(self.model.output, self.target)
+      else
+         if self.opt.preTarget == 'class' then
+            loss = self.criterionClass:forward(self.model.output, self.target)
+         else
+            self.target = self.preModel:forward(self.input)
+            if self.opt.chSelector ~= 'none' then
+               self.target = self.target:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+            end
+            loss = self.criterion:forward(self.model.output, self.target) 
          end
       end
-      local batchSize = output:size(1) / nCrops
-      local loss = self.criterion:forward(self.model.output, self.target)
-
       local top1, top5
-      if self.opt.criterion ~= 'none' then
+      if self.opt.preModel ~= 'none' and self.opt.preTarget == 'conv' then
          lossSum = lossSum + loss*batchSize
          N = N + batchSize
          io.write((' | Test: [%d][%d/%d]    Time %.3f  Data %.3f  loss %7.3f (%7.3f)\r'):format(
@@ -167,7 +219,7 @@ function Trainer:test(epoch, dataloader)
    end
    io.write('\n')
    self.model:training()
-   if self.opt.criterion ~= 'none' then
+   if self.opt.preModel ~= 'none' and self.opt.preTarget == 'conv' then
       print((' * Finished epoch # %d     lr %e     loss %7.3f\n'):format(
          epoch, self:learningRate(epoch-1), lossSum / N))
    else
@@ -233,7 +285,7 @@ function Trainer:learningRate(epoch)
    elseif self.opt.dataset == 'cifar10' then
       --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
       if self.opt.preModel ~= 'none' then
-         decay = epoch >= 225 and 5 or epoch >= 150 and 4 or 3
+         decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
       elseif self.opt.donModel ~= 'none' then
          --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
          --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1

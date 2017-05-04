@@ -52,15 +52,18 @@ function M.setup(opt, checkpoint)
       print('Loading channel selector from file: ' .. opt.chSelector)
       chSelector = torch.load(opt.chSelector):type(opt.tensorType):cuda()
    end
-   
+   if opt.preModel ~= 'none' then
+      preModel:remove(#preModel.modules)
+      preModel:remove(#preModel.modules)
+      preModel:remove(#preModel.modules)
+   end
    if not checkpoint then
       if opt.preModel ~= 'none' then
-         model:remove(#model.modules)
-         model:remove(#model.modules)
-         model:remove(#model.modules)
-         preModel:remove(#preModel.modules)
-         preModel:remove(#preModel.modules)
-         preModel:remove(#preModel.modules)
+         if opt.preTarget == 'conv' then 
+            model:remove(#model.modules)
+            model:remove(#model.modules)
+            model:remove(#model.modules)
+         end
          if opt.preModelAct == 'sigmoid' then
             model:remove(#model.modules)
             model:add(cudnn.Sigmoid(true))
@@ -82,9 +85,22 @@ function M.setup(opt, checkpoint)
             model:remove(#model.modules)
             model:add(cudnn.Sigmoid(true)):cuda()
          end
-         model:add(donModel:get(#donModel.modules-2))
-         model:add(donModel:get(#donModel.modules-1))
-         model:add(donModel:get(#donModel.modules))
+         if opt.chSelector == 'none' then
+            model:add(donModel:get(#donModel.modules-2))
+            model:add(donModel:get(#donModel.modules-1))
+            model:add(donModel:get(#donModel.modules))
+         else
+            local nChannels = opt.nLastLayerCh
+            model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
+            if opt.dataset == 'cifar100' then
+               model:add(nn.Linear(nChannels, 100))
+            elseif opt.dataset == 'cifar10' then
+               model:add(nn.Linear(nChannels, 10))
+            end
+            model:get(#model.modules).weight
+                  :copy(donModel:get(#donModel.modules).weight:index(2, chSelector[{{1,opt.nLastLayerCh}}]))
+            model:cuda()
+         end
       end  
    end
    -- First remove any DataParallelTable
