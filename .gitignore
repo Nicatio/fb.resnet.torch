@@ -10,3 +10,4 @@ models/dense*
 *.settings
 batch.txt
 test.lua
+wideresnet.lua
