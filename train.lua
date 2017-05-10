@@ -280,27 +280,49 @@ end
 function Trainer:learningRate(epoch)
    -- Training schedule
    local decay = 0
-   if self.opt.dataset == 'imagenet' then
-      decay = math.floor((epoch - 1) / 30)
-   elseif self.opt.dataset == 'cifar10' then
-      --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
-      if self.opt.preModel ~= 'none' then
-         decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-      elseif self.opt.donModel ~= 'none' then
-         --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
-         --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
-         --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-         decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
-         --decay = epoch >= 375 and 3 or epoch >=300 and 2 or epoch >= 225 and 1.5 or epoch >=150 and 1 or 0
-         --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-         --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
-      else
-         decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+   if string.sub(self.opt.netType,1,8) == 'densenet' then
+      if self.opt.dataset == 'imagenet' then
+         decay = math.floor((epoch - 1) / 30)
+      elseif self.opt.dataset == 'cifar10' then
+         --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+         if self.opt.preModel ~= 'none' then
+            decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+         elseif self.opt.donModel ~= 'none' then
+            --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
+            --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
+            --decay = epoch >= 375 and 3 or epoch >=300 and 2 or epoch >= 225 and 1.5 or epoch >=150 and 1 or 0
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
+         else
+            decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+         end
+      elseif self.opt.dataset == 'cifar100' then
+         decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
       end
-   elseif self.opt.dataset == 'cifar100' then
-      decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      return self.opt.LR * math.pow(0.1, decay)
+   elseif string.sub(self.opt.netType,1,10) == 'wideresnet' then
+      if self.opt.dataset == 'imagenet' then
+         decay = math.floor((epoch - 1) / 30)
+         return self.opt.LR * math.pow(0.1, decay)
+      elseif self.opt.dataset == 'cifar10' then
+         decay = epoch >= 160 and 3 or epoch >= 120 and 2 or epoch >= 60 and 1 or 0
+         return self.opt.LR * math.pow(0.2, decay)
+      elseif self.opt.dataset == 'cifar100' then
+         decay = epoch >= 120 and 2 or epoch >= 80 and 1 or 0
+         return self.opt.LR * math.pow(0.1, decay)
+      end
+   else
+      if self.opt.dataset == 'imagenet' then
+         decay = math.floor((epoch - 1) / 30)
+      elseif self.opt.dataset == 'cifar10' then
+         decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      elseif self.opt.dataset == 'cifar100' then
+         decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      end
+      return self.opt.LR * math.pow(0.1, decay)
    end
-   return self.opt.LR * math.pow(0.1, decay)
 end
 
 function Trainer:featureExtract(epoch, dataloader, layerIndex)

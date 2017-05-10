@@ -5,9 +5,9 @@ checkpoints
 tr/*
 feat/*
 models/dense*
+models/wideresnet*
 .buildpath
 .project
 *.settings
 batch.txt
 test.lua
-wideresnet.lua
