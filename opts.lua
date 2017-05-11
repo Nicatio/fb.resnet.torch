@@ -43,9 +43,10 @@ function M.parse(arg)
    cmd:option('-resume',          'none',        'Resume from the latest checkpoint in this directory')
    cmd:option('-saveNresume',     'none',        'Save and resume from the checkpoint in this directory')
    ---------- Optimization options ----------------------
-   cmd:option('-LR',              0.1,   'initial learning rate')
-   cmd:option('-momentum',        0.9,   'momentum')
-   cmd:option('-weightDecay',     1e-4,  'weight decay')
+   cmd:option('-LR',              0.1,     'initial learning rate')
+   cmd:option('-momentum',        0.9,     'momentum')
+   cmd:option('-weightDecay',     1e-4,    'weight decay')
+   cmd:option('-lsuv',            'false', 'apply layer-sequential unit-variance (LSUV) initialization ')
    ---------- Model options ----------------------------------
    cmd:option('-netType',      'resnet', 'Options: resnet | preresnet')
    cmd:option('-preModel',     'none',   'Path to pretrained Model')
@@ -79,6 +80,8 @@ function M.parse(arg)
    opt.resetClassifier = opt.resetClassifier ~= 'false'
    opt.retrainOnlyFC = opt.retrainOnlyFC ~= 'false'
    opt.randCrop = opt.randCrop ~= 'false'
+   opt.lsuv = opt.lsuv ~= 'false'
+   
    if opt.saveNresume ~= 'none' then
       opt.save = opt.saveNresume
       opt.resume = opt.saveNresume

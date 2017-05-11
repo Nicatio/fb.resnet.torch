@@ -11,3 +11,4 @@ models/wideresnet*
 *.settings
 batch.txt
 test.lua
+lsuv.lua

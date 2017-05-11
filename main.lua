@@ -46,6 +46,11 @@ local trainLoader, valLoader = DataLoader.create(opt)
 -- The trainer handles the training loop and evaluation on validation set
 local trainer = Trainer(model, preModel, donModel, chSelector, criterion, opt, optimState)
 
+if opt.lsuv then
+   local lsuv = require 'lsuv'
+   model:lsuvInit(opt)
+end
+
 if opt.testOnly then
    local top1Err, top5Err = trainer:test(0, valLoader)
    print(string.format(' * Results top1: %6.3f  top5: %6.3f', top1Err, top5Err))
