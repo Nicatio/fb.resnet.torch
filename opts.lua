@@ -46,12 +46,13 @@ function M.parse(arg)
    cmd:option('-LR',              0.1,     'initial learning rate')
    cmd:option('-momentum',        0.9,     'momentum')
    cmd:option('-weightDecay',     1e-4,    'weight decay')
-   cmd:option('-lsuv',            'false', 'apply layer-sequential unit-variance (LSUV) initialization ')
+   cmd:option('-lsuv',            'false', 'apply layer-sequential unit-variance (LSUV) initialization')
    ---------- Model options ----------------------------------
    cmd:option('-netType',      'resnet', 'Options: resnet | preresnet')
    cmd:option('-preModel',     'none',   'Path to pretrained Model')
    cmd:option('-preModelAct',  'none',   'Pretrained model activation type')
-   cmd:option('-preTarget',    'conv',   'Training target when pretrained model is given (conv | class)')
+   cmd:option('-preTarget',    'none',   'Training target when pretrained model is given', 
+                                                                              '(conv | class | hybrid)')
    cmd:option('-donModel',     'none',   'none | addFC | Path to doner model')
    cmd:option('-chSelector',   'none',   'Path to channel selector')
    cmd:option('-nLastLayerCh', 132,      'Number of last conv layer channels')
@@ -81,6 +82,10 @@ function M.parse(arg)
    opt.retrainOnlyFC = opt.retrainOnlyFC ~= 'false'
    opt.randCrop = opt.randCrop ~= 'false'
    opt.lsuv = opt.lsuv ~= 'false'
+   
+   if opt.preModel ~= 'none' and opt.preTarget == 'none' then
+      cmd:error('error: -preTarget required when preModel is set')
+   end
    
    if opt.saveNresume ~= 'none' then
       opt.save = opt.saveNresume

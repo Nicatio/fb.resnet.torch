@@ -52,14 +52,14 @@ function M.setup(opt, checkpoint)
       print('Loading channel selector from file: ' .. opt.chSelector)
       chSelector = torch.load(opt.chSelector):type(opt.tensorType):cuda()
    end
-   if opt.preModel ~= 'none' then
+   if opt.preModel ~= 'none' and opt.preTarget ~= 'class' then
       preModel:remove(#preModel.modules)
       preModel:remove(#preModel.modules)
       preModel:remove(#preModel.modules)
    end
    if not checkpoint then
       if opt.preModel ~= 'none' then
-         if opt.preTarget == 'conv' then 
+         if opt.preTarget == 'conv' or opt.preTarget == 'hybrid' then 
             model:remove(#model.modules)
             model:remove(#model.modules)
             model:remove(#model.modules)

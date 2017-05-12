@@ -89,50 +89,62 @@ function Trainer:train(epoch, dataloader)
          self.criterion:backward(self.model.output, self.target)
          self.model:backward(self.input, self.criterion.gradInput)
          optim.sgd(feval, self.params, self.optimState)
-      else 
-         if self.opt.preTarget == 'class' then
-            tempModel:add(self.model:get(#self.model.modules-2))
-            tempModel:add(self.model:get(#self.model.modules-1))
-            tempModel:add(self.model:get(#self.model.modules))
-            self.model:remove(#self.model.modules)
-            self.model:remove(#self.model.modules)
-            self.model:remove(#self.model.modules)
-         end
-         self.targetConv = self.preModel:forward(self.input)
-         if self.opt.chSelector ~= 'none' then
-            self.targetConv = self.targetConv:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
-         end
-
-         output = self.model:forward(self.input):float()
-         batchSize = output:size(1)
-         loss = self.criterion:forward(self.model.output, self.targetConv)
-   
-         self.model:zeroGradParameters()
-         self.criterion.gradInput = torch.CudaTensor()
-         self.criterion.gradInput:resizeAs(self.model.output):zero()
-         self.criterion:backward(self.model.output, self.targetConv)
-         self.model:backward(self.input, self.criterion.gradInput)
-         if self.opt.retrainOnlyFC == true then
-             self.gradParams:narrow(1,1,self.gradParams:size()[1]-1320-10):zero()
-         end
-         optim.sgd(feval, self.params, self.optimState)
-         
-         if self.opt.preTarget == 'class' then
-            self.model:add(tempModel:get(#tempModel.modules-2))
-            self.model:add(tempModel:get(#tempModel.modules-1))
-            self.model:add(tempModel:get(#tempModel.modules))
-            tempModel:remove(#tempModel.modules)
-            tempModel:remove(#tempModel.modules)
-            tempModel:remove(#tempModel.modules)
-            
+      else
+         if self.opt.preTarget == 'hybrid' or self.opt.preTarget == 'conv' then
+           if self.opt.preTarget == 'hybrid' then
+              tempModel:add(self.model:get(#self.model.modules-2))
+              tempModel:add(self.model:get(#self.model.modules-1))
+              tempModel:add(self.model:get(#self.model.modules))
+              self.model:remove(#self.model.modules)
+              self.model:remove(#self.model.modules)
+              self.model:remove(#self.model.modules)
+           end
+           self.targetConv = self.preModel:forward(self.input)
+           if self.opt.chSelector ~= 'none' then
+              self.targetConv = self.targetConv:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
+           end
+  
+           output = self.model:forward(self.input):float()
+           batchSize = output:size(1)
+           loss = self.criterion:forward(self.model.output, self.targetConv)
+     
+           self.model:zeroGradParameters()
+           self.criterion.gradInput = torch.CudaTensor()
+           self.criterion.gradInput:resizeAs(self.model.output):zero()
+           self.criterion:backward(self.model.output, self.targetConv)
+           self.model:backward(self.input, self.criterion.gradInput)
+           if self.opt.retrainOnlyFC == true then
+               self.gradParams:narrow(1,1,self.gradParams:size()[1]-1320-10):zero()
+           end
+           optim.sgd(feval, self.params, self.optimState)
+           
+           if self.opt.preTarget == 'hybrid' then
+              self.model:add(tempModel:get(#tempModel.modules-2))
+              self.model:add(tempModel:get(#tempModel.modules-1))
+              self.model:add(tempModel:get(#tempModel.modules))
+              tempModel:remove(#tempModel.modules)
+              tempModel:remove(#tempModel.modules)
+              tempModel:remove(#tempModel.modules)
+              
+              output = self.model:forward(self.input):float()
+              batchSize = output:size(1)
+              loss = self.criterionClass:forward(self.model.output, self.target)
+              self.model:zeroGradParameters()
+              self.criterionClass:backward(self.model.output, self.target)
+              self.model:backward(self.input, self.criterionClass.gradInput)
+              optim.sgd(feval, self.params, self.optimStateClass)
+           end
+         elseif self.opt.preTarget == 'class' then
+            self.target = self.preModel:forward(self.input)
             output = self.model:forward(self.input):float()
             batchSize = output:size(1)
-            loss = self.criterionClass:forward(self.model.output, self.target)
+            loss = self.criterion:forward(self.model.output, self.target)
             self.model:zeroGradParameters()
-            self.criterionClass:backward(self.model.output, self.target)
-            self.model:backward(self.input, self.criterionClass.gradInput)
-            optim.sgd(feval, self.params, self.optimStateClass)
+            self.criterion:backward(self.model.output, self.target)
+            self.model:backward(self.input, self.criterion.gradInput)
+            optim.sgd(feval, self.params, self.optimState)
          end
+         
       end
       local top1, top5
       lossSum = lossSum + loss*batchSize
@@ -185,14 +197,14 @@ function Trainer:test(epoch, dataloader)
       if self.opt.preModel == 'none' then
          loss = self.criterion:forward(self.model.output, self.target)
       else
-         if self.opt.preTarget == 'class' then
-            loss = self.criterionClass:forward(self.model.output, self.target)
-         else
+         if self.opt.preTarget == 'conv' then
             self.target = self.preModel:forward(self.input)
             if self.opt.chSelector ~= 'none' then
                self.target = self.target:index(2, self.chSelector[{{1,self.opt.nLastLayerCh}}])
             end
             loss = self.criterion:forward(self.model.output, self.target) 
+         else
+            loss = self.criterionClass:forward(self.model.output, self.target)
          end
       end
       local top1, top5
