@@ -101,8 +101,8 @@ function M.parse(arg)
    end
    
    if not opt.testOnly and not opt.feOnly then 
-      local fd = io.open(('th main.lua %s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
-      fd:write(table.concat(arg, ' '))
+      local fd = io.open(('%s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
+      fd:write(('th main.lua %s'):format(table.concat(arg, ' ')))
       fd:close()
    end
 
