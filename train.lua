@@ -55,7 +55,7 @@ function Trainer:train(epoch, dataloader)
       self.optimState.learningRate = self:learningRate(epoch)
    else
       self.optimState.learningRate = self:learningRate(epoch) / 1000
-      if self.opt.preTarget == 'class' then
+      if self.opt.preTarget == 'class' or self.opt.preTarget == 'hybrid' then
          self.optimStateClass.learningRate = self:learningRate(epoch)
       end
    end
@@ -135,11 +135,17 @@ function Trainer:train(epoch, dataloader)
               optim.sgd(feval, self.params, self.optimStateClass)
            end
          elseif self.opt.preTarget == 'class' then
+--         print(self.target[1])
+--         print(self.target:type())
             self.target = self.preModel:forward(self.input)
+--            print(self.target[1])
+--         print(self.target:type())
             output = self.model:forward(self.input):float()
             batchSize = output:size(1)
             loss = self.criterion:forward(self.model.output, self.target)
             self.model:zeroGradParameters()
+            self.criterion.gradInput = torch.CudaTensor()
+            self.criterion.gradInput:resizeAs(self.model.output):zero()
             self.criterion:backward(self.model.output, self.target)
             self.model:backward(self.input, self.criterion.gradInput)
             optim.sgd(feval, self.params, self.optimState)

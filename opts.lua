@@ -51,8 +51,7 @@ function M.parse(arg)
    cmd:option('-netType',      'resnet', 'Options: resnet | preresnet')
    cmd:option('-preModel',     'none',   'Path to pretrained Model')
    cmd:option('-preModelAct',  'none',   'Pretrained model activation type')
-   cmd:option('-preTarget',    'none',   'Training target when pretrained model is given', 
-                                                                              '(conv | class | hybrid)')
+   cmd:option('-preTarget',    'none',   'Training target (conv | class | hybrid)')
    cmd:option('-donModel',     'none',   'none | addFC | Path to doner model')
    cmd:option('-chSelector',   'none',   'Path to channel selector')
    cmd:option('-nLastLayerCh', 132,      'Number of last conv layer channels')
@@ -102,7 +101,7 @@ function M.parse(arg)
    end
    
    if not opt.testOnly and not opt.feOnly then 
-      local fd = io.open(('%s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
+      local fd = io.open(('th main.lua %s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
       fd:write(table.concat(arg, ' '))
       fd:close()
    end
