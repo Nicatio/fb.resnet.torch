@@ -168,6 +168,10 @@ function M.setup(opt, checkpoint)
    if opt.criterion == 'smooth' then
       criterion = nn.SmoothL1Criterion:cuda()
       criterion.sizeAverage = false
+--      model:add(nn.LogSoftMax())
+--      preModel:add(nn.LogSoftMax())
+--      model:cuda()
+--      preModel:cuda()
    elseif opt.criterion == 'mse' then
       criterion = nn.MSECriterion:cuda()
       criterion.sizeAverage = false

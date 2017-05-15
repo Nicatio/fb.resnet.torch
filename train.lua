@@ -62,6 +62,11 @@ function Trainer:train(epoch, dataloader)
    local timer = torch.Timer()
    local dataTimer = torch.Timer()
 
+--   if epoch >= 200 then
+--   print('crit')
+--   print('crit2')
+--      self.criterion = nn.CrossEntropyCriterion():type(self.opt.tensorType)
+--   end
    local function feval()
       return self.criterion.output, self.gradParams
    end
@@ -135,11 +140,9 @@ function Trainer:train(epoch, dataloader)
               optim.sgd(feval, self.params, self.optimStateClass)
            end
          elseif self.opt.preTarget == 'class' then
---         print(self.target[1])
---         print(self.target:type())
+if epoch <200 then
             self.target = self.preModel:forward(self.input)
---            print(self.target[1])
---         print(self.target:type())
+            end
             output = self.model:forward(self.input):float()
             batchSize = output:size(1)
             loss = self.criterion:forward(self.model.output, self.target)
@@ -188,7 +191,8 @@ function Trainer:test(epoch, dataloader)
    local nCrops = self.opt.tenCrop and 10 or 1
    local top1Sum, top5Sum, lossSum = 0.0, 0.0, 0.0
    local N = 0
-
+   
+   
    self.model:evaluate()
    for n, sample in dataloader:run() do
       local dataTime = dataTimer:time().real
@@ -327,6 +331,8 @@ function Trainer:learningRate(epoch)
       elseif self.opt.dataset == 'cifar10' then
 --         decay = epoch >= 160 and 3 or epoch >= 120 and 2 or epoch >= 60 and 1 or 0
          decay = epoch >= 400 and 4 or epoch >= 300 and 3 or epoch >= 200 and 2 or epoch >= 100 and 1 or 0
+         --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 200 and 1 or 0
+         --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 300 and 1 or 0
          return self.opt.LR * math.pow(0.2, decay)
       elseif self.opt.dataset == 'cifar100' then
          decay = epoch >= 120 and 2 or epoch >= 80 and 1 or 0
