@@ -84,6 +84,13 @@ function checkpoint.save(epoch, model, optimState, isBestModel, opt)
    if isBestModel then
       torch.save(paths.concat(opt.save, 'model_best.t7'), model)
    end
+   if epoch > 1 then
+      local prevModelFile = 'model_' .. (epoch-1) .. '.t7'
+      local prevOptimFile = 'optimState_' .. (epoch-1) .. '.t7'
+      os.remove(paths.concat(opt.save, prevModelFile))
+      os.remove(paths.concat(opt.save, prevOptimFile))
+   end
+   
 end
 
 return checkpoint

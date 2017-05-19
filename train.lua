@@ -14,6 +14,16 @@ local optim = require 'optim'
 local M = {}
 local Trainer = torch.class('resnet.Trainer', M)
 
+local function getCudaTensorType(tensorType)
+  if tensorType == 'torch.CudaHalfTensor' then
+     return cutorch.createCudaHostHalfTensor()
+  elseif tensorType == 'torch.CudaDoubleTensor' then
+    return cutorch.createCudaHostDoubleTensor()
+  else
+     return cutorch.createCudaHostTensor()
+  end
+end
+
 function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, optimState)
    self.model = model
    self.preModel = preModel
@@ -30,6 +40,7 @@ function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, o
    }
    self.opt = opt
    self.params, self.gradParams = self.model:getParameters()
+
    if self.opt.preTarget == 'class' then
       self.criterionClass = nn.CrossEntropyCriterion():type(opt.tensorType)
       
@@ -37,6 +48,15 @@ function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, o
    else 
       self.criterionClass = nil
    end
+   
+   self.numTrainExcept = 0
+   if self.opt.trainExcept > 0 then
+      local a,b = self.model:parameters()
+      for i = 1,self.opt.trainExcept do
+         self.numTrainExcept = self.numTrainExcept + a[i]:nElement()
+      end
+   end
+
    print (self.model)
    print ('')
    print (' - weightDecay:   ' .. opt.weightDecay)
@@ -62,11 +82,6 @@ function Trainer:train(epoch, dataloader)
    local timer = torch.Timer()
    local dataTimer = torch.Timer()
 
---   if epoch >= 200 then
---   print('crit')
---   print('crit2')
---      self.criterion = nn.CrossEntropyCriterion():type(self.opt.tensorType)
---   end
    local function feval()
       return self.criterion.output, self.gradParams
    end
@@ -80,20 +95,63 @@ function Trainer:train(epoch, dataloader)
    self.model:training()
   
    local tempModel = nn.Sequential()
-  
+   local temp 
+   if self.numTrainExcept > 0 then
+      temp = torch.Tensor(self.numTrainExcept):type(self.opt.tensorType)
+   end 
    for n, sample in dataloader:run(self.opt.randCrop) do
       local dataTime = dataTimer:time().real
       local output, batchSize, loss
       -- Copy input and target to the GPU
       self:copyInputs(sample)
       if self.opt.preModel == 'none' then
-         output = self.model:forward(self.input):float()
-         batchSize = output:size(1)
-         loss = self.criterion:forward(self.model.output, self.target)
-         self.model:zeroGradParameters()
-         self.criterion:backward(self.model.output, self.target)
-         self.model:backward(self.input, self.criterion.gradInput)
-         optim.sgd(feval, self.params, self.optimState)
+         if self.opt.donType ~= 'ppInput' then
+            output = self.model:forward(self.input):float()
+            batchSize = output:size(1)
+            loss = self.criterion:forward(self.model.output, self.target)
+            self.model:zeroGradParameters()
+            self.criterion:backward(self.model.output, self.target)
+            self.model:backward(self.input, self.criterion.gradInput)
+            if self.numTrainExcept > 0 then
+               temp:copy(self.params:narrow(1,1,self.numTrainExcept))
+            end
+            optim.sgd(feval, self.params, self.optimState)
+            if self.numTrainExcept > 0 then
+               self.params:narrow(1,1,self.numTrainExcept):copy(temp)
+            end
+         else
+            local yy , i = torch.sort(self.target)
+            local y = torch.Tensor(self.target:size(1))
+            y:copy(i)
+            local k = 1
+            local t = 0
+            for j=1,10 do
+               local c = torch.sum(torch.eq(yy,j))
+               if c>0 then
+               k = t + 1
+               t = t + c
+               y [{{k,t}}] = torch.randperm(c)+k-1
+               end
+            end
+            for j=1,self.input:size(1) do
+               yy[j] = i[y[j]]
+            end
+            local yyy , k = torch.sort(i)
+            for j=1,self.input:size(1) do
+               i[j] = yy[k[j]]
+            end
+            self.input3 = self.donModel:forward(self.input):cuda()
+            self.input4 = self.donModel:forward(self.input):cuda()
+            self.input5 = self.input4:index(1,i:long())
+            self.input2 = self.input3*self.opt.mixRate + self.input5*(1-self.opt.mixRate)
+            output = self.model:forward(self.input2):float()
+            batchSize = output:size(1)
+            loss = self.criterion:forward(self.model.output, self.target)
+            self.model:zeroGradParameters()
+            self.criterion:backward(self.model.output, self.target)
+            self.model:backward(self.input2, self.criterion.gradInput)
+            optim.sgd(feval, self.params, self.optimState)
+         end
       else
          if self.opt.preTarget == 'hybrid' or self.opt.preTarget == 'conv' then
            if self.opt.preTarget == 'hybrid' then
@@ -140,9 +198,7 @@ function Trainer:train(epoch, dataloader)
               optim.sgd(feval, self.params, self.optimStateClass)
            end
          elseif self.opt.preTarget == 'class' then
-if epoch <200 then
             self.target = self.preModel:forward(self.input)
-            end
             output = self.model:forward(self.input):float()
             batchSize = output:size(1)
             loss = self.criterion:forward(self.model.output, self.target)
@@ -202,7 +258,13 @@ function Trainer:test(epoch, dataloader)
 
 
       local output, batchSize, loss
-      output = self.model:forward(self.input):float()
+      if self.opt.donType ~= 'ppInput' then
+         output = self.model:forward(self.input):float()
+      else
+         local output1 = self.donModel:forward(self.input):cuda()
+         output = self.model:forward(output1):float()
+      end
+      
       batchSize = output:size(1) / nCrops
       if self.opt.preModel == 'none' then
          loss = self.criterion:forward(self.model.output, self.target)
@@ -278,16 +340,6 @@ function Trainer:computeScore(output, target, nCrops)
    return top1 * 100, top5 * 100
 end
 
-local function getCudaTensorType(tensorType)
-  if tensorType == 'torch.CudaHalfTensor' then
-     return cutorch.createCudaHostHalfTensor()
-  elseif tensorType == 'torch.CudaDoubleTensor' then
-    return cutorch.createCudaHostDoubleTensor()
-  else
-     return cutorch.createCudaHostTensor()
-  end
-end
-
 function Trainer:copyInputs(sample)
    -- Copies the input to a CUDA tensor, if using 1 GPU, or to pinned memory,
    -- if using DataParallelTable. The target is always copied to a CUDA tensor
@@ -329,8 +381,8 @@ function Trainer:learningRate(epoch)
          decay = math.floor((epoch - 1) / 30)
          return self.opt.LR * math.pow(0.1, decay)
       elseif self.opt.dataset == 'cifar10' then
---         decay = epoch >= 160 and 3 or epoch >= 120 and 2 or epoch >= 60 and 1 or 0
-         decay = epoch >= 400 and 4 or epoch >= 300 and 3 or epoch >= 200 and 2 or epoch >= 100 and 1 or 0
+         decay = epoch >= 160 and 3 or epoch >= 120 and 2 or epoch >= 60 and 1 or 0
+         --decay = epoch >= 400 and 4 or epoch >= 300 and 3 or epoch >= 200 and 2 or epoch >= 100 and 1 or 0
          --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 200 and 1 or 0
          --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 300 and 1 or 0
          return self.opt.LR * math.pow(0.2, decay)

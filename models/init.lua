@@ -17,7 +17,7 @@ require 'cudnn'
 local M = {}
 
 function M.setup(opt, checkpoint)
-   local model, preModel, donModel, chSelector
+   local model, preModel, donModel, chSelector, tempModel
    if checkpoint then
       local modelPath = paths.concat(opt.resume, checkpoint.modelFile)
       assert(paths.filep(modelPath), 'Saved model not found: ' .. modelPath)
@@ -71,7 +71,7 @@ function M.setup(opt, checkpoint)
             preModel:add(cudnn.Sigmoid(true))
          end
       end
-      if opt.donModel == 'addFC' then
+      if opt.donType == 'addFC' then
          local nChannels = opt.nLastLayerCh
          model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
          if opt.dataset == 'cifar100' then
@@ -80,26 +80,46 @@ function M.setup(opt, checkpoint)
             model:add(nn.Linear(nChannels, 10))
          end
          model:cuda()
-      elseif opt.donModel ~= 'none' then
-         if opt.preModelAct == 'sigmoid' then
-            model:remove(#model.modules)
-            model:add(cudnn.Sigmoid(true)):cuda()
+      elseif opt.donType == 'pp' then
+         tempModel = nn.Sequential()
+         for i=1,opt.donNumLayers do
+            tempModel:add(donModel:get(i)) 
          end
-         if opt.chSelector == 'none' then
-            model:add(donModel:get(#donModel.modules-2))
-            model:add(donModel:get(#donModel.modules-1))
-            model:add(donModel:get(#donModel.modules))
-         else
-            local nChannels = opt.nLastLayerCh
-            model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
-            if opt.dataset == 'cifar100' then
-               model:add(nn.Linear(nChannels, 100))
-            elseif opt.dataset == 'cifar10' then
-               model:add(nn.Linear(nChannels, 10))
+         for i=opt.donNumLayers+1,#model.modules do
+            tempModel:add(model:get(i)) 
+         end
+         model = tempModel
+      elseif opt.donType == 'ppInput' then
+         local dnum = #donModel.modules
+         for i=opt.donNumLayers+1,dnum do
+            donModel:remove(#donModel.modules) 
+         end
+         for i=1,opt.donNumLayers do
+            model:remove(1) 
+         end
+         donModel:cuda()
+      else
+         if opt.donModel ~= 'none' then
+            if opt.preModelAct == 'sigmoid' then
+               model:remove(#model.modules)
+               model:add(cudnn.Sigmoid(true)):cuda()
             end
-            model:get(#model.modules).weight
-                  :copy(donModel:get(#donModel.modules).weight:index(2, chSelector[{{1,opt.nLastLayerCh}}]))
-            model:cuda()
+            if opt.chSelector == 'none' then
+               model:add(donModel:get(#donModel.modules-2))
+               model:add(donModel:get(#donModel.modules-1))
+               model:add(donModel:get(#donModel.modules))
+            else
+               local nChannels = opt.nLastLayerCh
+               model:add(cudnn.SpatialAveragePooling(8,8)):add(nn.Reshape(nChannels))
+               if opt.dataset == 'cifar100' then
+                  model:add(nn.Linear(nChannels, 100))
+               elseif opt.dataset == 'cifar10' then
+                  model:add(nn.Linear(nChannels, 10))
+               end
+               model:get(#model.modules).weight
+                     :copy(donModel:get(#donModel.modules).weight:index(2, chSelector[{{1,opt.nLastLayerCh}}]))
+               model:cuda()
+            end
          end
       end  
    end
@@ -113,6 +133,11 @@ function M.setup(opt, checkpoint)
       local optnet = require 'optnet'
       local imsize = opt.dataset == 'imagenet' and 224 or 32
       local sampleInput = torch.zeros(4,3,imsize,imsize):type(opt.tensorType)
+      if opt.donType == 'ppInput' then
+         sampleInput = donModel:forward(sampleInput):cuda()
+      end
+      print(sampleInput:size())
+      print(model)
       optnet.optimizeMemory(model, sampleInput, {inplace = false, mode = 'training'})
    end
 
@@ -178,6 +203,7 @@ function M.setup(opt, checkpoint)
    else
       criterion = nn.CrossEntropyCriterion():type(opt.tensorType)
    end
+
    return model, criterion, preModel, donModel, chSelector
 end
 
