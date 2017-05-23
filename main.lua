@@ -16,7 +16,8 @@ local models = require 'models/init'
 local Trainer = require 'train'
 local opts = require 'opts'
 local checkpoints = require 'checkpoints'
-require 'DropChannel'
+require 'DropC'
+require 'DropCStd'
 
 -- we don't  change this to the 'correct' type (e.g. HalfTensor), because math
 -- isn't supported on that type.  Type conversion later will handle having
