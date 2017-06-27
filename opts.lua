@@ -73,6 +73,17 @@ function M.parse(arg)
    cmd:option('-optnet',          'false', 'Use optnet to reduce memory usage')
    cmd:option('-resetClassifier', 'false', 'Reset the fully connected layer for fine-tuning')
    cmd:option('-nClasses',         10,      'Number of classes in the dataset')
+   ---------- Model options for DenseNet ---------------------
+   cmd:option('-growthRate',        12,    'Number of output channels at each convolutional layer')
+   cmd:option('-bottleneck',       'true', 'Use 1x1 convolution to reduce dimension (DenseNet-B)')
+   cmd:option('-reduction',         0.5,   'Channel compress ratio at transition layer (DenseNet-C)')
+   cmd:option('-dropRate',           0,    'Dropout probability')
+   cmd:option('-optMemory',          2,    'Optimize memory for DenseNet: 0 | 1 | 2 | 3 | 4 | 5', 'number')
+   -- The following hyperparameters are activated when depth is not from {121, 161, 169, 201} (for ImageNet only)
+   cmd:option('-d1',                 0,    'Number of layers in block 1')
+   cmd:option('-d2',                 0,    'Number of layers in block 2')
+   cmd:option('-d3',                 0,    'Number of layers in block 3')
+   cmd:option('-d4',                 0,    'Number of layers in block 4')
    cmd:text()
      
    local opt = cmd:parse(arg or {})
@@ -87,6 +98,8 @@ function M.parse(arg)
    opt.randCrop = opt.randCrop ~= 'false'
    opt.lsuv = opt.lsuv ~= 'false'
    opt.impInit = opt.impInit ~= 'false'
+   opt.bottleneck = opt.bottleneck ~= 'false'
+   
    
    if opt.preModel ~= 'none' and opt.preTarget == 'none' then
       cmd:error('error: -preTarget required when preModel is set')

@@ -6,6 +6,7 @@ tr/*
 feat/*
 models/dense*
 models/wideresnet*
+models/Dense*
 .buildpath
 .project
 *.settings

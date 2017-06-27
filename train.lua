@@ -465,7 +465,8 @@ function Trainer:learningRate(epoch)
       elseif self.opt.dataset == 'cifar10' then
          --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
          if self.opt.preModel ~= 'none' then
-            decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
+            --decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
+            decay = epoch >= 0.75*self.opt.nEpochs and 2 or epoch >= 0.5*self.opt.nEpochs and 1 or 0
          elseif self.opt.donModel ~= 'none' then
             --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
             --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
@@ -476,13 +477,14 @@ function Trainer:learningRate(epoch)
             --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
          else
             --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-            decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+            --decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+            decay = epoch >= 0.75*self.opt.nEpochs and 2 or epoch >= 0.5*self.opt.nEpochs and 1 or 0
          
          end
       elseif self.opt.dataset == 'cifar100' then
          decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
       end
-      return self.opt.LR * math.pow(0.2, decay)
+      return self.opt.LR * math.pow(0.1, decay)
    elseif string.sub(self.opt.netType,1,10) == 'wideresnet' then
       if self.opt.dataset == 'imagenet' then
          decay = math.floor((epoch - 1) / 30)
