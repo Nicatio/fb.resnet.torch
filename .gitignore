@@ -12,4 +12,10 @@ models/wideresnet*
 batch.txt
 test.lua
 lsuv.lua
+BND.lua
+impInit.lua
+SELU.lua
+SpatialConvolution*
+test2.lua
+vvvv.lua
 Drop*

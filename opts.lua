@@ -47,12 +47,13 @@ function M.parse(arg)
    cmd:option('-momentum',        0.9,     'momentum')
    cmd:option('-weightDecay',     1e-4,    'weight decay')
    cmd:option('-lsuv',            'false', 'apply layer-sequential unit-variance (LSUV) initialization')
+   cmd:option('-impInit',         'false', 'apply donated model initialization')
    ---------- Model options ----------------------------------
    cmd:option('-netType',      'resnet', 'Options: resnet | preresnet')
    cmd:option('-preModel',     'none',   'Path to pretrained Model')
    cmd:option('-preModelAct',  'none',   'Pretrained model activation type')
    cmd:option('-preTarget',    'none',   'Training target (conv | class | hybrid)')
-   cmd:option('-donType',      'none',   'none | addFC | pp | ppInput')
+   cmd:option('-donType',      'none',   'none | addFC | pp | ppInput | eq')
    cmd:option('-donNumLayers', 10,       'Number of layers to donate from donModel')
    cmd:option('-donModel',     'none',   'Path to doner model')
    cmd:option('-mixRate',      0.9,      'mix rate')
@@ -85,6 +86,7 @@ function M.parse(arg)
    opt.retrainOnlyFC = opt.retrainOnlyFC ~= 'false'
    opt.randCrop = opt.randCrop ~= 'false'
    opt.lsuv = opt.lsuv ~= 'false'
+   opt.impInit = opt.impInit ~= 'false'
    
    if opt.preModel ~= 'none' and opt.preTarget == 'none' then
       cmd:error('error: -preTarget required when preModel is set')

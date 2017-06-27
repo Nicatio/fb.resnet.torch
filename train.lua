@@ -13,6 +13,87 @@ local optim = require 'optim'
 
 local M = {}
 local Trainer = torch.class('resnet.Trainer', M)
+local dfdx2, dfdx3
+function optim.sgd2(opfunc, x, config, state)
+   -- (0) get/update state
+   local config = config or {}
+   local state = state or config
+   local lr = config.learningRate or 1e-3
+   local lrd = config.learningRateDecay or 0
+   local wd = config.weightDecay or 0
+   local mom = config.momentum or 0
+   local damp = config.dampening or mom
+   local nesterov = config.nesterov or false
+   local lrs = config.learningRates
+   local wds = config.weightDecays
+   state.evalCounter = state.evalCounter or 0
+   local nevals = state.evalCounter
+   assert(not nesterov or (mom > 0 and damp == 0), "Nesterov momentum requires a momentum and zero dampening")
+
+   -- (1) evaluate f(x) and df/dx
+   local fx,dfdx = opfunc(x)
+   if dfdx2 == nil then
+      dfdx2 = torch.Tensor():typeAs(x):resizeAs(dfdx)
+      dfdx2:copy(dfdx)
+      dfdx3 = torch.Tensor():typeAs(x):resizeAs(dfdx)
+      dfdx3:copy(dfdx)
+   else
+--      local dfdxx = dfdx2+dfdx3
+--      dfdxx:mul(0.5)
+--      dfdx3:copy(dfdx2)
+--      dfdx2:copy(dfdx)
+--      dfdx:add(dfdxx)
+--      dfdx3:copy(dfdx2)
+--      dfdx:copy(dfdx2)
+--      dfdx2:copy(dfdx3)
+   end
+   -- (2) weight decay with single or individual parameters
+   if wd ~= 0 then
+      dfdx:add(wd, x)
+   elseif wds then
+      if not state.decayParameters then
+         state.decayParameters = torch.Tensor():typeAs(x):resizeAs(dfdx)
+      end
+      state.decayParameters:copy(wds):cmul(x)
+      dfdx:add(state.decayParameters)
+   end
+
+   -- (3) apply momentum
+   if mom ~= 0 then
+      if not state.dfdx then
+         state.dfdx = torch.Tensor():typeAs(dfdx):resizeAs(dfdx):copy(dfdx)
+      else
+         state.dfdx:mul(mom):add(1-damp, dfdx)
+      end
+      if nesterov then
+         dfdx:add(mom, state.dfdx)
+      else
+         dfdx = state.dfdx
+      end
+   end
+
+   -- (4) learning rate decay (annealing)
+   local clr = lr / (1 + nevals*lrd)
+
+   
+
+   -- (5) parameter update with single or individual learning rates
+   if lrs then
+      if not state.deltaParameters then
+         state.deltaParameters = torch.Tensor():typeAs(x):resizeAs(dfdx)
+      end
+      state.deltaParameters:copy(lrs):cmul(dfdx)
+      x:add(-clr, state.deltaParameters)
+   else
+      x:add(-clr, dfdx)
+   end
+   
+   -- (6) update evaluation counter
+   state.evalCounter = state.evalCounter + 1
+
+   -- return x*, f(x) before optimization
+   return x,{fx}
+end
 
 local function getCudaTensorType(tensorType)
   if tensorType == 'torch.CudaHalfTensor' then
@@ -217,13 +298,15 @@ function Trainer:train(epoch, dataloader)
       if self.opt.preModel ~= 'none' and self.opt.preTarget == 'conv' then
          top1 = 0
          top5 = 0
-         io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
+         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
+         --io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, lossSum / N))
       else 
          top1, top5 = self:computeScore(output, sample.target, 1)
          top1Sum = top1Sum + top1*batchSize
          top5Sum = top5Sum + top5*batchSize
-         io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
+         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
+         --io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, top1, top1Sum / N, top5, top5Sum / N))
       end
 
@@ -360,35 +443,78 @@ function Trainer:learningRate(epoch)
       elseif self.opt.dataset == 'cifar10' then
          --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
          if self.opt.preModel ~= 'none' then
-            decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
          elseif self.opt.donModel ~= 'none' then
             --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
             --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
             --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
-            decay = epoch >= 375 and 3 or epoch >= 300 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch > 375 and 3 or epoch > 300 and 2 or epoch > 150 and 1 or 0
             --decay = epoch >= 375 and 3 or epoch >=300 and 2 or epoch >= 225 and 1.5 or epoch >=150 and 1 or 0
             --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
             --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
          else
-            decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
          end
       elseif self.opt.dataset == 'cifar100' then
          decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
       end
       return self.opt.LR * math.pow(0.1, decay)
+   elseif string.sub(self.opt.netType,1,5) == 'dense' then
+      if self.opt.dataset == 'imagenet' then
+         decay = math.floor((epoch - 1) / 30)
+      elseif self.opt.dataset == 'cifar10' then
+         --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+         if self.opt.preModel ~= 'none' then
+            decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
+         elseif self.opt.donModel ~= 'none' then
+            --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
+            --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch > 375 and 3 or epoch > 300 and 2 or epoch > 150 and 1 or 0
+            --decay = epoch >= 375 and 3 or epoch >=300 and 2 or epoch >= 225 and 1.5 or epoch >=150 and 1 or 0
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
+         else
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+         
+         end
+      elseif self.opt.dataset == 'cifar100' then
+         decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      end
+      return self.opt.LR * math.pow(0.2, decay)
    elseif string.sub(self.opt.netType,1,10) == 'wideresnet' then
       if self.opt.dataset == 'imagenet' then
          decay = math.floor((epoch - 1) / 30)
          return self.opt.LR * math.pow(0.1, decay)
       elseif self.opt.dataset == 'cifar10' then
-         decay = epoch >= 160 and 3 or epoch >= 120 and 2 or epoch >= 60 and 1 or 0
+      if self.opt.nEpochs > 300 then
+         decay = epoch > 320 and 3 or epoch > 240 and 2 or epoch > 120 and 1 or 0
+      elseif self.opt.nEpochs > 200 then
+         decay = epoch > 240 and 3 or epoch > 180 and 2 or epoch > 90 and 1 or 0
+      else
+         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+      end
+         --
+         
          --decay = epoch >= 400 and 4 or epoch >= 300 and 3 or epoch >= 200 and 2 or epoch >= 100 and 1 or 0
          --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 200 and 1 or 0
          --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 300 and 1 or 0
          return self.opt.LR * math.pow(0.2, decay)
       elseif self.opt.dataset == 'cifar100' then
-         decay = epoch >= 120 and 2 or epoch >= 80 and 1 or 0
-         return self.opt.LR * math.pow(0.1, decay)
+         --decay = epoch >= 120 and 2 or epoch >= 80 and 1 or 0
+      if self.opt.nEpochs > 200 then
+         decay = epoch > 240 and 3 or epoch > 180 and 2 or epoch > 90 and 1 or 0
+      else
+         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+      end
+         --
+         
+         --decay = epoch >= 400 and 4 or epoch >= 300 and 3 or epoch >= 200 and 2 or epoch >= 100 and 1 or 0
+         --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 200 and 1 or 0
+         --decay = epoch >= 500 and 3 or epoch >= 400 and 2 or epoch >= 300 and 1 or 0
+         return self.opt.LR * math.pow(0.2, decay)
+--         return self.opt.LR * math.pow(0.1, decay)
       end
    else
       if self.opt.dataset == 'imagenet' then

@@ -47,17 +47,21 @@ end
 --      tt:mean(1)
 --      tt:std(1)
 local meanstd = {
-   mean = {129.3, 124.1, 112.4},
-   std  = {68.2,  65.4,  70.4},
+   mean = {125.3, 123.0, 113.9},--{129.3, 124.1, 112.4},
+   std  =  {63.0, 62.1, 66.7}   ,--{68.2,  65.4,  70.4},
 }
 
-function CifarDataset:preprocess()
+function CifarDataset:preprocess(isRandCrop)
    if self.split == 'train' then
-      return t.Compose{
-         t.ColorNormalize(meanstd),
-         t.HorizontalFlip(0.5),
-         t.RandomCrop(32, 4),
-      }
+      if isRandCrop then 
+         return t.Compose{
+            t.ColorNormalize(meanstd),
+            t.HorizontalFlip(0.5),
+            t.RandomCropReflect(32, 4),
+          }
+      else
+         return t.ColorNormalize(meanstd)
+      end
    elseif self.split == 'val' then
       return t.ColorNormalize(meanstd)
    else

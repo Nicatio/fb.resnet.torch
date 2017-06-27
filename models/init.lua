@@ -98,6 +98,8 @@ function M.setup(opt, checkpoint)
             model:remove(1) 
          end
          donModel:cuda()
+      elseif opt.donType == 'eq' then
+         donModel:cuda()
       else
          if opt.donModel ~= 'none' then
             if opt.preModelAct == 'sigmoid' then
@@ -165,6 +167,9 @@ function M.setup(opt, checkpoint)
    -- Set the CUDNN flags
    if opt.cudnn == 'fastest' then
       cudnn.fastest = true
+      cudnn.benchmark = true
+   elseif opt.cudnn == 'onlybm' then
+   print('onlybm')
       cudnn.benchmark = true
    elseif opt.cudnn == 'deterministic' then
       -- Use a deterministic convolution implementation

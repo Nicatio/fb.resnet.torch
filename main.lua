@@ -6,6 +6,7 @@
 --  LICENSE file in the root directory of this source tree. An additional grant
 --  of patent rights can be found in the PATENTS file in the same directory.
 --
+
 require 'torch'
 require 'paths'
 require 'optim'
@@ -16,19 +17,37 @@ local models = require 'models/init'
 local Trainer = require 'train'
 local opts = require 'opts'
 local checkpoints = require 'checkpoints'
+require 'SELU'
 require 'DropC'
+require 'DropCm'
+require 'DropChannel'
 require 'DropCStd'
+require 'DropCStd2'
+require 'DropCMean'
+require 'DropCMean2'
+require 'SpatialConvolutionDrop'
+require 'BND'
 
 -- we don't  change this to the 'correct' type (e.g. HalfTensor), because math
 -- isn't supported on that type.  Type conversion later will handle having
 -- the correct type.
 torch.setdefaulttensortype('torch.FloatTensor')
-torch.setnumthreads(1)
+--torch.setnumthreads(1)
 
 local opt = opts.parse(arg)
 torch.manualSeed(opt.manualSeed)
 cutorch.manualSeedAll(opt.manualSeed)
-cutorch.setDevice(opt.iGPU)
+--cutorch.setDevice(opt.iGPU)
+--
+--
+--local aaaaa = torch.FloatTensor()
+--aaaaa:resize(5,5):normal(1)
+--local b = torch.FloatTensor()
+--b:resize(5,5):zero():add(100)
+--aaaaa:maskedCopy(torch.le(aaaaa,0),b[torch.le(aaaaa,0)])
+--print(aaaaa)
+--prin()
+
 
 -- Load previous checkpoint, if it exists
 local checkpoint, optimState
@@ -51,6 +70,11 @@ local trainer = Trainer(model, preModel, donModel, chSelector, criterion, opt, o
 if opt.lsuv then
    local lsuv = require 'lsuv'
    model:lsuvInit(opt)
+end
+
+if opt.impInit then
+   local impInit = require 'impInit'
+   model:impInit(opt, donModel)
 end
 
 if opt.testOnly then

@@ -71,7 +71,7 @@ end
 function DataLoader:run()
    local threads = self.threads
    local size, batchSize = self.__size, self.batchSize
-   local perm = torch.range(1,size)--randperm(size)
+   local perm = torch.randperm(size)
 
    local idx, sample = 1, nil
    local function enqueue()
@@ -94,6 +94,9 @@ function DataLoader:run()
                   target[i] = sample.target
                end
                collectgarbage()
+--               if (torch.bernoulli(0.01) == 1) then
+--                   collectgarbage()
+--               end
                return {
                   input = batch:view(sz * nCrops, table.unpack(imageSize)),
                   target = target,

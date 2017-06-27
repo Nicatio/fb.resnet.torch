@@ -10,7 +10,7 @@
 --
 
 require 'image'
-
+require 'nn'
 local M = {}
 
 function M.Compose(transforms)
@@ -78,6 +78,61 @@ function M.RandomCrop(size, padding)
       end
 
       local x1, y1 = torch.random(0, w - size), torch.random(0, h - size)
+      local out = image.crop(input, x1, y1, x1 + size, y1 + size)
+      assert(out:size(2) == size and out:size(3) == size, 'wrong crop size')
+      return out
+   end
+end
+
+-- Random crop form larger image with optional zero padding
+function M.RandomCropReflect(size, padding)
+   padding = padding or 0
+
+   return function(input)
+      if padding > 0 then
+         module = nn.SpatialZeroPadding(padding,padding,padding,padding):float()
+
+         local temp = module:forward(input)
+--         local temp = input.new(3, input:size(2) + 2*padding, input:size(3) + 2*padding)
+--         temp:zero()
+--            :narrow(2, padding+1, input:size(2))
+--            :narrow(3, padding+1, input:size(3))
+--            :copy(input)
+         input = temp
+      end
+
+      local w, h = input:size(3), input:size(2)
+      if w == size and h == size then
+         return input
+      end
+
+      local x1, y1 = torch.random(0, w - size), torch.random(0, h - size)
+      local out = image.crop(input, x1, y1, x1 + size, y1 + size)
+      assert(out:size(2) == size and out:size(3) == size, 'wrong crop size')
+      return out
+   end
+end
+
+-- Fixed crop form larger image with optional zero padding
+function M.FixedCrop(size, padding, x1, y1)
+   padding = padding or 0
+
+   return function(input)
+      if padding > 0 then
+         local temp = input.new(input:size(1), input:size(2) + 2*padding, input:size(3) + 2*padding)
+         temp:zero()
+            :narrow(2, padding+1, input:size(2))
+            :narrow(3, padding+1, input:size(3))
+            :copy(input)
+         input = temp
+      end
+
+      local w, h = input:size(3), input:size(2)
+      if w == size and h == size then
+         return input
+      end
+
+      --local x1, y1 = torch.random(0, w - size), torch.random(0, h - size)
       local out = image.crop(input, x1, y1, x1 + size, y1 + size)
       assert(out:size(2) == size and out:size(3) == size, 'wrong crop size')
       return out
@@ -262,6 +317,17 @@ function M.RandomOrder(ts)
       for i=1,#ts do
          img = ts[order[i]](img)
       end
+      return img
+   end
+end
+
+function M.LOG()
+   return function(input)
+      local img = input.img or input
+      local c = torch.sign(img)
+      img:abs():add(1):log():cmul(c)
+
+      
       return img
    end
 end
