@@ -183,7 +183,7 @@ function M.setup(opt, checkpoint)
       local gpus = torch.range(1, opt.nGPU):totable()
       local fastest, benchmark = cudnn.fastest, cudnn.benchmark
 
-      local dpt = nn.DataParallelTable(1, true, true)
+      local dpt = nn.DataParallelTable(1, true, false)
          :add(model, gpus)
          :threads(function()
             local cudnn = require 'cudnn'

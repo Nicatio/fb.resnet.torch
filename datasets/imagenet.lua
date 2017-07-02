@@ -39,7 +39,7 @@ end
 
 function ImagenetDataset:_loadImage(path)
    local ok, input = pcall(function()
-      --print (path)
+      print (path)
       return image.load(path, 3, 'float')
    end)
 
