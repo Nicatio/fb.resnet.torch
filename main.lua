@@ -39,16 +39,6 @@ local opt = opts.parse(arg)
 torch.manualSeed(opt.manualSeed)
 cutorch.manualSeedAll(opt.manualSeed)
 --cutorch.setDevice(opt.iGPU)
---
---
---local aaaaa = torch.FloatTensor()
---aaaaa:resize(5,5):normal(1)
---local b = torch.FloatTensor()
---b:resize(5,5):zero():add(100)
---aaaaa:maskedCopy(torch.le(aaaaa,0),b[torch.le(aaaaa,0)])
---print(aaaaa)
---prin()
-
 
 -- Load previous checkpoint, if it exists
 local checkpoint, optimState

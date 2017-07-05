@@ -90,7 +90,7 @@ function M.RandomCropReflect(size, padding)
 
    return function(input)
       if padding > 0 then
-         module = nn.SpatialZeroPadding(padding,padding,padding,padding):float()
+         module = nn.SpatialReflectionPadding(padding,padding,padding,padding):float()
 
          local temp = module:forward(input)
 --         local temp = input.new(3, input:size(2) + 2*padding, input:size(3) + 2*padding)
