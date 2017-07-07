@@ -298,15 +298,13 @@ function Trainer:train(epoch, dataloader)
       if self.opt.preModel ~= 'none' and self.opt.preTarget == 'conv' then
          top1 = 0
          top5 = 0
-         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
-         --io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
+         io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %7.3f (%7.3f)\r'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, lossSum / N))
       else 
          top1, top5 = self:computeScore(output, sample.target, 1)
          top1Sum = top1Sum + top1*batchSize
          top5Sum = top5Sum + top5*batchSize
-         print((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
-         --io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
+         io.write((' | Epoch: [%d][%d/%d]    Time %.3f  Data %.3f  Err %1.4f  top1 %7.3f (%7.3f)  top5 %7.3f (%7.3f)\r'):format(
          epoch, n, trainSize, timer:time().real, dataTime, loss, top1, top1Sum / N, top5, top5Sum / N))
       end
 
