@@ -92,6 +92,11 @@ end
 local startEpoch = checkpoint and checkpoint.epoch + 1 or opt.epochNumber
 local bestTop1 = math.huge
 local bestTop5 = math.huge
+
+if startEpoch == 1 then
+   checkpoints.saveInit(model, optimState, opt)
+end
+
 for epoch = startEpoch, opt.nEpochs do
    -- Train for a single epoch
    local trainTop1, trainTop5, trainLoss = trainer:train(epoch, trainLoader)

@@ -42,6 +42,7 @@ function M.parse(arg)
    cmd:option('-save',            'checkpoints', 'Directory in which to save checkpoints')
    cmd:option('-resume',          'none',        'Resume from the latest checkpoint in this directory')
    cmd:option('-saveNresume',     'none',        'Save and resume from the checkpoint in this directory')
+   cmd:option('-remainLatest',    'true',        'Save and resume from the checkpoint in this directory')
    ---------- Optimization options ----------------------
    cmd:option('-LR',              0.1,     'initial learning rate')
    cmd:option('-momentum',        0.9,     'momentum')
@@ -99,6 +100,7 @@ function M.parse(arg)
    opt.lsuv = opt.lsuv ~= 'false'
    opt.impInit = opt.impInit ~= 'false'
    opt.bottleneck = opt.bottleneck ~= 'false'
+   opt.remainLatest = opt.remainLatest ~= 'false'
    
    
    if opt.preModel ~= 'none' and opt.preTarget == 'none' then
