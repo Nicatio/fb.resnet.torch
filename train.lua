@@ -192,6 +192,7 @@ function Trainer:train(epoch, dataloader)
             loss = self.criterion:forward(self.model.output, self.target)
             self.model:zeroGradParameters()
             self.criterion:backward(self.model.output, self.target)
+            print(self.criterion.gradInput)
             self.model:backward(self.input, self.criterion.gradInput)
             if self.numTrainExcept > 0 then
                temp:copy(self.params:narrow(1,1,self.numTrainExcept))

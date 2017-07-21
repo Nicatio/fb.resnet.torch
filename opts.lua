@@ -69,6 +69,7 @@ function M.parse(arg)
    cmd:option('-trainExcept',  0,        'Number of layers not to train')
    cmd:option('-optimState',   'none',   'Path to an optimState to reload from')
    cmd:option('-criterion',    'none',   'Training criterion')
+   cmd:option('-mavgGrad',     'false',  'Use moving averaged grad')
    ---------- Model options ----------------------------------
    cmd:option('-shareGradInput',  'false', 'Share gradInput tensors to reduce memory usage')
    cmd:option('-optnet',          'false', 'Use optnet to reduce memory usage')
@@ -101,6 +102,7 @@ function M.parse(arg)
    opt.impInit = opt.impInit ~= 'false'
    opt.bottleneck = opt.bottleneck ~= 'false'
    opt.remainLatest = opt.remainLatest ~= 'false'
+   opt.mavgGrad = opt.mavgGrad ~= 'false'
    
    
    if opt.preModel ~= 'none' and opt.preTarget == 'none' then
