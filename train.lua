@@ -121,6 +121,7 @@ function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, o
    }
    self.opt = opt
    self.params, self.gradParams = self.model:getParameters()
+   
 
    if self.opt.preTarget == 'class' then
       self.criterionClass = nn.CrossEntropyCriterion():type(opt.tensorType)
@@ -138,6 +139,10 @@ function Trainer:__init(model, preModel, donModel, chSelector, criterion, opt, o
       end
    end
 
+   self.oldGrad = torch.FloatTensor()
+--   self.opt.losses = torch.Tensor()
+--   self.lsm = nn.LogSoftMax()
+   
    print (self.model)
    print ('')
    print (' - weightDecay:   ' .. opt.weightDecay)
@@ -180,6 +185,10 @@ function Trainer:train(epoch, dataloader)
    if self.numTrainExcept > 0 then
       temp = torch.Tensor(self.numTrainExcept):type(self.opt.tensorType)
    end 
+--   if self.opt.losses:nDimension()==0 then
+--      self.opt.losses:resize(50000):zero()
+--   end
+   
    for n, sample in dataloader:run(self.opt.randCrop) do
       local dataTime = dataTimer:time().real
       local output, batchSize, loss
@@ -190,9 +199,21 @@ function Trainer:train(epoch, dataloader)
             output = self.model:forward(self.input):float()
             batchSize = output:size(1)
             loss = self.criterion:forward(self.model.output, self.target)
+--            self.lsm:updateOutput(self.model.output:float())
+--            self.opt.losses:narrow(1,N+1,batchSize):copy(self.lsm.output:gather(2,self.target:resize(batchSize,1):long()))
             self.model:zeroGradParameters()
             self.criterion:backward(self.model.output, self.target)
-            print(self.criterion.gradInput)
+            if self.opt.mavgGrad == true then
+               if self.oldGrad:nDimension()==0 then
+                  self.oldGrad:free()
+                  self.oldGrad = torch.Tensor(self.criterion.gradInput:float())
+               else
+                  self.criterion.gradInput:add(self.oldGrad:mul(0.1):cuda())
+                  self.criterion.gradInput:mul(1/1.1)
+                  self.oldGrad:copy(self.criterion.gradInput)
+               end
+            end
+
             self.model:backward(self.input, self.criterion.gradInput)
             if self.numTrainExcept > 0 then
                temp:copy(self.params:narrow(1,1,self.numTrainExcept))
@@ -332,7 +353,7 @@ function Trainer:test(epoch, dataloader)
    
    
    self.model:evaluate()
-   for n, sample in dataloader:run() do
+   for n, sample in dataloader:testrun() do
       local dataTime = dataTimer:time().real
 
       -- Copy input and target to the GPU
@@ -494,7 +515,8 @@ function Trainer:learningRate(epoch)
       elseif self.opt.nEpochs > 200 then
          decay = epoch > 240 and 3 or epoch > 180 and 2 or epoch > 90 and 1 or 0
       else
-         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+--         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or ((epoch+1)%2)
       end
          --
          

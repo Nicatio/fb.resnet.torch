@@ -58,6 +58,8 @@ function DataLoader:__init(dataset, opt, split)
       end
    end
    self.cpuType = getCPUType(opt.tensorType)
+   self.opt = opt
+--   self.indices = torch.Tensor()
 end
 
 function DataLoader:size()
@@ -74,6 +76,87 @@ function DataLoader:run()
    local perm = torch.randperm(size)
 
    local idx, sample = 1, nil
+--
+--   if self.indices:nDimension()==0 then
+--      perm = torch.randperm(size)
+--      self.indices:resize(size):zero()
+--      self.trueue=false
+--   else
+--      print(self.trueue)
+--      if self.trueue == false then
+--         local yy, ii
+--         yy, ii = torch.sort(self.opt.losses, 1, self.trueue)
+--         perm = self.indices:index(1,ii)
+--      else
+--         perm = torch.randperm(size)
+--      end
+--   end
+   local function enqueue()
+      while idx <= size and threads:acceptsjob() do
+         local indices = perm:narrow(1, idx, math.min(batchSize, size - idx + 1))
+--         self.indices:narrow(1,idx,math.min(batchSize, size - idx + 1)):copy(indices)
+         threads:addjob(
+            function(indices, nCrops, cpuType)
+               local sz = indices:size(1)
+               local batch, imageSize
+               local target = torch.IntTensor(sz)
+               for i, idx in ipairs(indices:totable()) do
+                  local sample = _G.dataset:get(idx)
+                  local input = _G.preprocess(sample.input)
+                  if not batch then
+                     imageSize = input:size():totable()
+                     if nCrops > 1 then table.remove(imageSize, 1) end
+                     batch = torch[cpuType](sz, nCrops, table.unpack(imageSize))
+                  end
+                  batch[i]:copy(input)
+                  target[i] = sample.target
+               end
+               collectgarbage()
+--               if (torch.bernoulli(0.01) == 1) then
+--                   collectgarbage()
+--               end
+               return {
+                  input = batch:view(sz * nCrops, table.unpack(imageSize)),
+                  target = target,
+               }
+            end,
+            function(_sample_)
+               sample = _sample_
+            end,
+            indices,
+            self.nCrops,
+            self.cpuType
+         )
+         idx = idx + batchSize
+      end
+   end
+
+   local n = 0
+   local function loop()
+      enqueue()
+      if not threads:hasjob() then
+         return nil
+      end
+      threads:dojob()
+      if threads:haserror() then
+         threads:synchronize()
+      end
+      enqueue()
+      n = n + 1
+      return n, sample
+   end
+
+   return loop
+end
+
+function DataLoader:testrun()
+   local threads = self.threads
+   local size, batchSize = self.__size, self.batchSize
+   local perm = torch.randperm(size)
+
+   local idx, sample = 1, nil
+--   print(size)
+   
    local function enqueue()
       while idx <= size and threads:acceptsjob() do
          local indices = perm:narrow(1, idx, math.min(batchSize, size - idx + 1))

@@ -18,6 +18,8 @@ local Trainer = require 'train'
 local opts = require 'opts'
 local checkpoints = require 'checkpoints'
 require 'DropC'
+
+require 'DropFlip'
 --require 'SELU'
 --
 --require 'DropCm'
