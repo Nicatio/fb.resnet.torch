@@ -19,7 +19,7 @@ local opts = require 'opts'
 local checkpoints = require 'checkpoints'
 require 'DropC'
 
-require 'DropFlip'
+--require 'DropFlip'
 --require 'SELU'
 --
 --require 'DropCm'
