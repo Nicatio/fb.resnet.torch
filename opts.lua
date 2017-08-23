@@ -144,11 +144,19 @@ function M.parse(arg)
       -- Default shortcutType=A and nEpochs=164
       opt.shortcutType = opt.shortcutType == '' and 'A' or opt.shortcutType
       opt.nEpochs = opt.nEpochs == 0 and 164 or opt.nEpochs
+   elseif opt.dataset == 'cifar10-10k' then
+      -- Default shortcutType=A and nEpochs=164
+      opt.shortcutType = opt.shortcutType == '' and 'A' or opt.shortcutType
+      opt.nEpochs = opt.nEpochs == 0 and 164 or opt.nEpochs
    elseif opt.dataset == 'cifar100' then
        -- Default shortcutType=A and nEpochs=164
        opt.shortcutType = opt.shortcutType == '' and 'A' or opt.shortcutType
        opt.nEpochs = opt.nEpochs == 0 and 164 or opt.nEpochs
    elseif opt.dataset == 'svhn' then
+       -- Default shortcutType=A and nEpochs=164
+       opt.shortcutType = opt.shortcutType == '' and 'A' or opt.shortcutType
+       opt.nEpochs = opt.nEpochs == 0 and 164 or opt.nEpochs
+   elseif opt.dataset == 'svhn255' then
        -- Default shortcutType=A and nEpochs=164
        opt.shortcutType = opt.shortcutType == '' and 'A' or opt.shortcutType
        opt.nEpochs = opt.nEpochs == 0 and 164 or opt.nEpochs

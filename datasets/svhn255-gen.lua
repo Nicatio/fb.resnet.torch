@@ -22,10 +22,10 @@ local function convertToTensor(files)
    for _, file in ipairs(files) do
       local m = torch.load(file, 'ascii')
       if not data then
-         data = m.X:transpose(3,4)
+         data = m.X:transpose(3,4):float():div(255)
          labels = m.y[1]:squeeze()
       else
-         data = torch.cat(data, m.X:transpose(3,4), 1)
+         data = torch.cat(data, m.X:transpose(3,4):float():div(255), 1)
          labels = torch.cat(labels, m.y[1]:squeeze())
       end
    end
@@ -33,7 +33,7 @@ local function convertToTensor(files)
    -- This is *very* important. The downloaded files have labels 0-9, which do
    -- not work with CrossEntropyCriterion
 --   labels:add(1)
-   print(labels)
+--   print(labels)
 
    return {
       data = data:contiguous(),--:view(-1, 3, 32, 32),

@@ -18,9 +18,10 @@ local Trainer = require 'train'
 local opts = require 'opts'
 local checkpoints = require 'checkpoints'
 require 'DropC'
-
+require 'DropCS'
 --require 'DropFlip'
---require 'SELU'
+require 'SELU'
+require 'AlphaDropout'
 --
 --require 'DropCm'
 --require 'DropChannel'
@@ -53,7 +54,10 @@ end
 
 -- Create model
 local model, criterion, preModel, donModel, chSelector = models.setup(opt, checkpoint)
-
+--local params_, gradParams_ = model:getParameters()
+--   
+--   print (' - #params:       ' .. params_:size(1))
+--prin()
 -- Data loading
 local trainLoader, valLoader = DataLoader.create(opt)
 

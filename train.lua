@@ -473,10 +473,28 @@ function Trainer:learningRate(epoch)
             --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
             --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
          else
-            decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
+            decay = epoch > 0.75*self.opt.nEpochs and 2 or epoch > 0.5*self.opt.nEpochs and 1 or 0
+            --decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
+         end
+      elseif self.opt.dataset == 'cifar10-10k' then
+         --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+         if self.opt.preModel ~= 'none' then
+            decay = epoch > 225*5 and 2 or epoch > 150*5 and 1 or 0
+         elseif self.opt.donModel ~= 'none' then
+            --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
+            --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            decay = epoch > 375 and 3 or epoch > 300 and 2 or epoch > 150 and 1 or 0
+            --decay = epoch >= 375 and 3 or epoch >=300 and 2 or epoch >= 225 and 1.5 or epoch >=150 and 1 or 0
+            --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
+            --decay = epoch >= 225 and 3 or epoch >= 150 and 2 or epoch >= 75 and 1 or 0
+         else
+            decay = epoch > 225*5 and 2 or epoch > 150*5 and 1 or 0
          end
       elseif self.opt.dataset == 'cifar100' then
          decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
+      elseif  string.sub(self.opt.dataset,1,4) == 'svhn' then
+         decay = epoch > 30 and 2 or epoch > 20 and 1 or 0
       end
       return self.opt.LR * math.pow(0.1, decay)
    elseif string.sub(self.opt.netType,1,5) == 'dense' then
@@ -486,7 +504,7 @@ function Trainer:learningRate(epoch)
          --decay = epoch >= 122 and 2 or epoch >= 81 and 1 or 0
          if self.opt.preModel ~= 'none' then
             --decay = epoch > 225 and 2 or epoch > 150 and 1 or 0
-            decay = epoch >= 0.75*self.opt.nEpochs and 2 or epoch >= 0.5*self.opt.nEpochs and 1 or 0
+            decay = epoch > 0.75*self.opt.nEpochs and 2 or epoch > 0.5*self.opt.nEpochs and 1 or 0
          elseif self.opt.donModel ~= 'none' then
             --decay =  epoch >= 175 and 3 or epoch >= 100 and 2 or epoch >= 25 and 1 or 0
             --decay = epoch >= 150 and 3 or epoch >= 75 and 2 or 1
@@ -498,7 +516,7 @@ function Trainer:learningRate(epoch)
          else
             --decay = epoch >= 225 and 2 or epoch >= 150 and 1 or 0
             --decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
-            decay = epoch >= 0.75*self.opt.nEpochs and 2 or epoch >= 0.5*self.opt.nEpochs and 1 or 0
+            decay = epoch > 0.75*self.opt.nEpochs and 2 or epoch > 0.5*self.opt.nEpochs and 1 or 0
          
          end
       elseif self.opt.dataset == 'cifar100' then
@@ -515,8 +533,8 @@ function Trainer:learningRate(epoch)
       elseif self.opt.nEpochs > 200 then
          decay = epoch > 240 and 3 or epoch > 180 and 2 or epoch > 90 and 1 or 0
       else
---         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
-         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or ((epoch+1)%2)
+         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or 0
+--         decay = epoch > 160 and 3 or epoch > 120 and 2 or epoch > 60 and 1 or ((epoch+1)%2)
       end
          --
          
