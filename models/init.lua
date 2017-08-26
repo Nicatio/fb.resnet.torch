@@ -188,6 +188,8 @@ function M.setup(opt, checkpoint)
          :threads(function()
             local cudnn = require 'cudnn'
             require 'DropC'
+            require 'DropCS'
+            require 'DropCL'
             cudnn.fastest, cudnn.benchmark = fastest, benchmark
          end)
       dpt.gradInput = nil
