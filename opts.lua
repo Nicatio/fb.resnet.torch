@@ -32,6 +32,8 @@ function M.parse(arg)
    cmd:option('-epochNumber',     1,       'Manual epoch number (useful on restarts)')
    cmd:option('-batchSize',       32,      'mini-batch size (1 = pure stochastic)')
    cmd:option('-testOnly',        'false', 'Run on validation set only')
+   cmd:option('-trTest',          'false', 'Run on training set only')
+   cmd:option('-trRound',         0,       'Roundu-up factor')
    cmd:option('-tenCrop',         'false', 'Ten-crop testing')
    cmd:option('-randCrop',        'true',  'Random crop')
    ------------- Feature Extraction options ----------
@@ -91,6 +93,7 @@ function M.parse(arg)
    local opt = cmd:parse(arg or {})
    
    opt.testOnly = opt.testOnly ~= 'false'
+   opt.trTest = opt.trTest ~= 'false'
    opt.feOnly = opt.feOnly ~= 'false'
    opt.tenCrop = opt.tenCrop ~= 'false'
    opt.shareGradInput = opt.shareGradInput ~= 'false'

@@ -39,9 +39,10 @@ end
 
 function ImagenetDataset:_loadImage(path)
    local ok, input = pcall(function()
-      print (path)
-      return image.load(path, 3, 'float')
+      return image.load(path, 3, 'byte')
    end)
+
+   input = input:float():div(math.pow(2, self.opt.trRound)):round():mul(math.pow(2, self.opt.trRound)):div(255)
 
    -- Sometimes image.load fails because the file extension does not match the
    -- image format. In that case, use image.decompress on a ByteTensor.
@@ -79,18 +80,28 @@ local pca = {
 }
 
 function ImagenetDataset:preprocess()
+   
    if self.split == 'train' then
-      return t.Compose{
-         t.RandomSizedCrop(224),
-         t.ColorJitter({
-            brightness = 0.4,
-            contrast = 0.4,
-            saturation = 0.4,
-         }),
-         t.Lighting(0.1, pca.eigval, pca.eigvec),
-         t.ColorNormalize(meanstd),
-         t.HorizontalFlip(0.5),
-      }
+      if self.opt.trTest == true then
+         local Crop = self.opt.tenCrop and t.TenCrop or t.CenterCrop
+         return t.Compose{
+            t.Scale(256),
+            t.ColorNormalize(meanstd),
+            Crop(224),
+          }
+      else
+         return t.Compose{
+            t.RandomSizedCrop(224),
+            t.ColorJitter({
+               brightness = 0.4,
+               contrast = 0.4,
+               saturation = 0.4,
+            }),
+            t.Lighting(0.1, pca.eigval, pca.eigvec),
+            t.ColorNormalize(meanstd),
+            t.HorizontalFlip(0.5),
+         }
+      end
    elseif self.split == 'val' then
       local Crop = self.opt.tenCrop and t.TenCrop or t.CenterCrop
       return t.Compose{

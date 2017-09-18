@@ -76,9 +76,23 @@ if opt.impInit then
 end
 
 if opt.testOnly then
-   local top1Err, top5Err = trainer:test(0, valLoader)
-   print(string.format(' * Results top1: %6.3f  top5: %6.3f', top1Err, top5Err))
-   return
+   if opt.trTest then
+      local top1Err, top5Err = trainer:test(0, trainLoader)
+      print(string.format(' * Results top1: %6.3f  top5: %6.3f', top1Err, top5Err))
+      local logfile = io.open(('%s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
+      logfile:write(('%7.3f\t%7.3f\n'):format(
+            top1Err, top5Err))
+      logfile:close()
+      return
+   else
+      local top1Err, top5Err = trainer:test(0, valLoader)
+      print(string.format(' * Results top1: %6.3f  top5: %6.3f', top1Err, top5Err))
+      local logfile = io.open(('%s/log_%d.txt'):format(opt.save,math.ceil(sys.clock())), 'w')
+      logfile:write(('%7.3f\t%7.3f\n'):format(
+            top1Err, top5Err))
+      logfile:close()
+      return
+   end
 end
 
 
